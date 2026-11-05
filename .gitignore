@@ -1,0 +1,17 @@
+.DS_Store
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+**/build/
+**/dist/
+.env
+.env.*
+!.env.example
+**/device-id.txt
+**/expert-cache.jsonl
+**/pending/
+**/*.pt
+**/*.pth
+training/data/collection/
+training/data/expert-learning/

@@ -1,0 +1,22 @@
+{
+  "teacher_samples": 26,
+  "train_episodes": [
+    "fe835238247f425c99425c2d6a1fb5b7"
+  ],
+  "validation_episodes": [
+    "615e45bcb388453bb5d9b83dccac04b7"
+  ],
+  "metrics": [
+    {
+      "epoch": 1,
+      "train_loss": 4.89362907409668,
+      "validation_action_accuracy": 0.07692307978868484
+    },
+    {
+      "epoch": 2,
+      "train_loss": 4.66864013671875,
+      "validation_action_accuracy": 0.0
+    }
+  ],
+  "note": "Action imitation accuracy is not playing strength or a recovered expert algorithm."
+}

@@ -1,0 +1,214 @@
+{
+  "date": "2026-11-05",
+  "mode": "computer",
+  "difficulty": "Expert",
+  "difficultyUiEvidence": "Difficulty toggle 专家 Value:1; 红方 Value:1; 你先走; in-game player card 电脑（专家）",
+  "humanSide": 1,
+  "computerSide": 2,
+  "roundCount": 23,
+  "plyCount": 46,
+  "moves": [
+    "e2",
+    "e8",
+    "e3",
+    "e7",
+    "e4",
+    "e6",
+    "e5",
+    "e4",
+    "hd3",
+    "hd5",
+    "f5",
+    "hf5",
+    "ve3",
+    "hh5",
+    "vc4",
+    "vb6",
+    "f4",
+    "vf4",
+    "f3",
+    "hf2",
+    "g3",
+    "vg2",
+    "g4",
+    "vb8",
+    "g5",
+    "e5",
+    "h5",
+    "f5",
+    "h4",
+    "f4",
+    "h3",
+    "f3",
+    "h2",
+    "g3",
+    "h1",
+    "g4",
+    "hg1",
+    "h4",
+    "vh1",
+    "i4",
+    "g1",
+    "i3",
+    "f1",
+    "i2",
+    "e1",
+    "i1"
+  ],
+  "rounds": [
+    [
+      "e2",
+      "e8"
+    ],
+    [
+      "e3",
+      "e7"
+    ],
+    [
+      "e4",
+      "e6"
+    ],
+    [
+      "e5",
+      "e4"
+    ],
+    [
+      "hd3",
+      "hd5"
+    ],
+    [
+      "f5",
+      "hf5"
+    ],
+    [
+      "ve3",
+      "hh5"
+    ],
+    [
+      "vc4",
+      "vb6"
+    ],
+    [
+      "f4",
+      "vf4"
+    ],
+    [
+      "f3",
+      "hf2"
+    ],
+    [
+      "g3",
+      "vg2"
+    ],
+    [
+      "g4",
+      "vb8"
+    ],
+    [
+      "g5",
+      "e5"
+    ],
+    [
+      "h5",
+      "f5"
+    ],
+    [
+      "h4",
+      "f4"
+    ],
+    [
+      "h3",
+      "f3"
+    ],
+    [
+      "h2",
+      "g3"
+    ],
+    [
+      "h1",
+      "g4"
+    ],
+    [
+      "hg1",
+      "h4"
+    ],
+    [
+      "vh1",
+      "i4"
+    ],
+    [
+      "g1",
+      "i3"
+    ],
+    [
+      "f1",
+      "i2"
+    ],
+    [
+      "e1",
+      "i1"
+    ]
+  ],
+  "winner": 2,
+  "finishedReason": "goal",
+  "finishedReasonUiEvidence": "你输了 / 电脑（专家）先抵达终点",
+  "final": {
+    "player1Position": "e1",
+    "player2Position": "i1",
+    "player1Walls": 5,
+    "player2Walls": 2
+  },
+  "replayUrl": "https://barricade.gg/analysis?moves=KYJgNMAcEMwQ7BALBAbBArMsALAJnPlgGZY6lgBuwhOWlAxipQEbrHMdjGHHgDmcSvwHMW0flmBkSZFFxxweuAYQCMYfihz8NOZjg0BLFLrBGlx8MGNqgA&p1=Subagent%20(Red)&p2=Computer%20(Expert)",
+  "replayUrlProvenance": "Reconstructed offline from the complete visible UI movelist using the publicly shipped URI codec. Not an observed stored server game URL.",
+  "gameplayConstraints": {
+    "uiOnly": true,
+    "registered": false,
+    "loggedIn": false,
+    "paid": false,
+    "stateModified": false,
+    "undoUsed": false,
+    "resigned": false,
+    "hiddenApiUsed": false
+  },
+  "observations": [
+    "Expert was selectable without login or payment.",
+    "Short 思考中… state was visible after most human actions; no measured latency claim.",
+    "Expert jumped from e6 over red e5 to e4 on move 4.",
+    "Expert joined hd5, hf5, hh5 into a horizontal barrier across d–i between ranks 5 and 6.",
+    "Expert anticipated right-side passage closures with vf4, hf2 and vg2.",
+    "Expert switched to i4 in reply to vh1 and finished i3–i2–i1.",
+    "End screen offered rematch, lobby, analysis, video export, and share.",
+    "Game screen did not expose an undo button in this Expert match.",
+    "Did not deliberately attempt out-of-turn input while AI was thinking; interaction locking not verified."
+  ],
+  "keyTurns": [
+    {
+      "round": 4,
+      "meaning": "Computer jumps over central red pawn and gains racing tempo."
+    },
+    {
+      "rounds": [
+        5,
+        6,
+        7
+      ],
+      "meaning": "Computer builds connected hd5/hf5/hh5 barrier; red is forced into an extended detour. Our ve3 and vc4 also constrained our own route."
+    },
+    {
+      "rounds": [
+        9,
+        10,
+        11
+      ],
+      "meaning": "Computer continues closing red escape routes via vf4/hf2/vg2."
+    },
+    {
+      "round": 20,
+      "meaning": "Computer chooses i4 immediately after vh1, avoiding the h-file terminal obstruction."
+    },
+    {
+      "round": 23,
+      "meaning": "Computer reaches i1; system declares goal victory."
+    }
+  ]
+}

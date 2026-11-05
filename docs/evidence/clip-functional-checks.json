@@ -1,0 +1,141 @@
+{
+  "scope": "Static source analysis and earlier preview observations; additional control tests not completed",
+  "date": "2026-11-05",
+  "sources": {
+    "clip": "13c4de27b157c2de.js",
+    "board": "b99ebf75b97cb2f1.js",
+    "api": "8da57accf9ee3c86.js"
+  },
+  "static_findings": [
+    {
+      "feature": "export preview defaults",
+      "evidence": "clip:831-834",
+      "detail": "2x / player1 unless supplied pov=2 / sound on / 9:16; component state only, no localStorage for these settings"
+    },
+    {
+      "feature": "export speed distinct from game replay",
+      "evidence": "clip:701-710",
+      "detail": "Only 1x,2x,3x; no 0.5x or 5x"
+    },
+    {
+      "feature": "aspect UI vs internal capability",
+      "evidence": "clip:22-26,834,1482-1551",
+      "detail": "Renderer supports 9:16=720x1280,1:1=720x720,16:9=1280x720. Current dialog has no aspect selector, aspect state defaults 9:16 and setter not used"
+    },
+    {
+      "feature": "preview mode",
+      "evidence": "clip:875-958",
+      "detail": "Initialized and reset to fallback; server preview branches exist but no transition into server found"
+    },
+    {
+      "feature": "preview animation",
+      "evidence": "clip:248-333,956-993",
+      "detail": "requestAnimationFrame, per-step state cache, 250ms pawn tween,500ms end hold; loops automatically; clamps seek to 0..1; pause freezes progression"
+    },
+    {
+      "feature": "preview controls",
+      "evidence": "clip:1445-1549",
+      "detail": "Play/pause button, range slider 0..1000; pointer drag suppresses automatic slider updates; view and sound refs update without restart"
+    },
+    {
+      "feature": "first100 limit",
+      "evidence": "clip:948,961,1023,1219,1548",
+      "detail": "Both preview and local export use first100 plies; warning shown when moves.length>100"
+    },
+    {
+      "feature": "settings reopen",
+      "evidence": "clip:762-813,995-1006",
+      "detail": "Closing effect resets pipeline/error/result but not P/A/W/Z; however enclosing Headless UI Transition at lines 762-813 may unmount er. Retention cannot be inferred without UI. Refresh defaults expected."
+    },
+    {
+      "feature": "local recording",
+      "evidence": "clip:1131-1250",
+      "detail": "Offscreen canvas,30fps,6Mbps, MediaRecorder selects MP4/h264 first then WebM codecs; audio streams merged if sound on; fallback ffmpeg wasm converts to MP4"
+    },
+    {
+      "feature": "recording includes first frame",
+      "evidence": "clip:1138-1144",
+      "detail": "Draw empty initial state before recording starts"
+    },
+    {
+      "feature": "server export",
+      "evidence": "clip:1037-1130",
+      "detail": "With shareCode asks signClipExport, fetches provided downloadUrl, gets MP4; maps notfound/unavailable/expired/nonce/busy/network errors; does not automatically fall back to client on server failure"
+    },
+    {
+      "feature": "progress/cancel",
+      "evidence": "clip:1295-1316,1570-1617",
+      "detail": "States idle,recording,loading-ffmpeg,transcoding,saving,done,error. Local recording offers Cancel; during ffmpeg/transcode progress no Cancel button. Local busy disables Close. Server jobs allow closing (on completion toast) and no cancel control"
+    },
+    {
+      "feature": "download in embedded browsers",
+      "evidence": "clip:475-530,1410-1440",
+      "detail": "navigator.canShare(files) detects OS file sharing. Normal browser triggers Blob download; embedded browser uses share-file help when available, otherwise attempted download and open-in-browser guidance"
+    },
+    {
+      "feature": "theme persisted",
+      "evidence": "board:7283-7311",
+      "detail": "board_theme dark/light in localStorage and board-theme-change event sync"
+    },
+    {
+      "feature": "wall tray persisted",
+      "evidence": "board:7541-7550,9362-9375",
+      "detail": "walls_expanded true/false localStorage; default expanded for coarse pointer devices"
+    },
+    {
+      "feature": "other preferences",
+      "evidence": "board:7657-7675,7854-7866",
+      "detail": "analysis_mobile_walls_shown and analysisShowBestMove stored; mute-move-sounds stored in GameProvider"
+    },
+    {
+      "feature": "local match persistence",
+      "evidence": "local-page GameProvider wrapper; rules/state useState initializer; searched board+provider",
+      "detail": "No local-game serialization to storage found in relevant local path; theme/tray persisted independently. Refresh-reset still needs UI check"
+    },
+    {
+      "feature": "export style independent from board preferences",
+      "evidence": "clip:71-165,831-834",
+      "detail": "Canvas painter uses fixed light board/red-blue palette; checkbox sound has independent state from game mute preference"
+    }
+  ],
+  "ui_findings": [],
+  "ui_test_plan": [
+    "Open own fresh analysis tab and clip preview",
+    "Check options list; pause then seek midrange and compare position after delay",
+    "Change speed/view/sound then close/reopen; reload and compare defaults",
+    "Check long moves warning with isolated URL only if needed",
+    "Do not perform heavy recording/transcoding; progress/cancel remain static unless necessary"
+  ],
+  "implementation_priority": {
+    "P0": [
+      "single timeline seek/play/pause behavior",
+      "consistent POV mapping",
+      "documented first100 bound or explicit whole-game option",
+      "distinct UI settings vs stored game state"
+    ],
+    "P1": [
+      "client video generation and audio mixing",
+      "clear recording/cancel/transcode states",
+      "persistent choices if desired"
+    ],
+    "P2": [
+      "multiple aspect selectors (new feature rather than matching visible dialog)",
+      "server-render export",
+      "embedded-browser share fallback"
+    ]
+  },
+  "ui_attempt": {
+    "status": "not_completed",
+    "details": [
+      "Additional isolated UI tests were not completed. No export controls were changed and no video was downloaded."
+    ],
+    "remaining_unverified": [
+      "pause-seek UI behavior",
+      "view/sound immediate update",
+      "close/reopen config reset",
+      "refresh defaults",
+      "speed options visible menu (source confirms1x2x3x)"
+    ],
+    "existing_UI_evidence_from_parent": "Earlier parent visited preview dialog: pause button,0..1000slider,2x default,view,sound checkbox,Download visible; no aspect selector."
+  }
+}

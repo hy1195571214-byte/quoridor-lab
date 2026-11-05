@@ -1,0 +1,49 @@
+{
+  "health": {
+    "ok": true,
+    "difficulty": "expert",
+    "action_count": 209,
+    "observation_shape": [
+      8,
+      9,
+      9
+    ],
+    "network_requests": 0,
+    "cache_hits": 2
+  },
+  "expert_response": {
+    "action_id": 13,
+    "notation": "e8",
+    "source": "barricade:expert",
+    "latency_seconds": 0.0,
+    "cached": true,
+    "metadata": {
+      "difficulty": "expert",
+      "observed_at": "2026-11-05T03:45:20.772728+00:00",
+      "provider_response": {
+        "ok": true,
+        "move": "e8"
+      }
+    }
+  },
+  "state_after_step": {
+    "pawns": [
+      "e2",
+      "e8"
+    ],
+    "walls": [],
+    "remaining_walls": [
+      10,
+      10
+    ],
+    "turn": 1,
+    "winner": null,
+    "finished_reason": null,
+    "ply": 2,
+    "moves": [
+      "e2",
+      "e8"
+    ]
+  },
+  "invalid_history_status": 400
+}

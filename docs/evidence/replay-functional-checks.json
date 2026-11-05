@@ -1,0 +1,96 @@
+{
+  "scope": "Static source cross-check plus isolated Chrome tab UI tests on 2026-11-05",
+  "source_root": "public-frontend-reference (see source-index.json)",
+  "static_confirmed": [
+    {
+      "feature": "Replay cursor and navigation",
+      "behavior": "Cursor -1 is initial state. Left/Right step; Up goes initial; Down goes mainline end. Navigation pauses autoplay.",
+      "evidence": [
+        "d1dde131bf60bbe8.js:1737",
+        "d1dde131bf60bbe8.js:1923",
+        "d1dde131bf60bbe8.js:2245"
+      ]
+    },
+    {
+      "feature": "Autoplay end behavior",
+      "behavior": "Play at final mainline restarts initial state. Reaching last move stops on next interval, not infinite loop. Space and End toggle play/pause.",
+      "evidence": [
+        "d1dde131bf60bbe8.js:1836",
+        "d1dde131bf60bbe8.js:1880"
+      ]
+    },
+    {
+      "feature": "Copy notation",
+      "behavior": "Ctrl/Cmd+C copies comma-separated mainline when nothing selected. Existing selected text is preserved. Branches not included in this shortcut.",
+      "evidence": [
+        "d1dde131bf60bbe8.js:1892"
+      ]
+    },
+    {
+      "feature": "Variation creation",
+      "behavior": "Legal move or wall from selected position creates branch. Existing branch with same first move is selected. New actions in active branch append to whole branch tail.",
+      "evidence": [
+        "d1dde131bf60bbe8.js:1793",
+        "d1dde131bf60bbe8.js:2504"
+      ]
+    },
+    {
+      "feature": "Variation structure and removal",
+      "behavior": "Dictionary keyed by mainline ply index. Value is array of move arrays. Delete removes one variation; deleting active variation restores branch point. Earlier variation removal reindexes active reference.",
+      "evidence": [
+        "d1dde131bf60bbe8.js:2535",
+        "d1dde131bf60bbe8.js:2560"
+      ]
+    },
+    {
+      "feature": "Variation sharing",
+      "behavior": "var query grammar: ply:move,move|another,variation;anotherPly:... . Opening selects last parsed variation at its last move.",
+      "evidence": [
+        "d1dde131bf60bbe8.js:1668",
+        "d1dde131bf60bbe8.js:2365"
+      ]
+    },
+    {
+      "feature": "Analysis gating",
+      "behavior": "Engine analysis is separate service. Results support accuracy, avgLoss, classifications, evaluation chart, best line, quota and cache metadata. Best line is converted to variation and played at 700ms/move.",
+      "evidence": [
+        "d1dde131bf60bbe8.js:2038",
+        "d1dde131bf60bbe8.js:2323"
+      ]
+    }
+  ],
+  "ui_pending": [
+    "share button actually serializes variations (serialization confirmed statically; manual var URL loading tested)",
+    "keyboard navigation (source confirmed)",
+    "autoplay end stopping / restart (source confirmed)",
+    "branch backtrack then alternative edit (source suggests tail append)"
+  ],
+  "potential_boundary_issue": "When viewing earlier depth inside active branch, tO computes full branch and tD appends tail; need UI verify before calling this a defect.",
+  "ui_confirmed": [
+    {
+      "feature": "Anonymous variation creation",
+      "steps": "Open sample replay; click mainline e2; click blue f9; then red e3, blue f8",
+      "observed": "Variation shown as (1... f9 2. e3 f8); mainline e2/e8/he4 preserved; no login needed"
+    },
+    {
+      "feature": "Variation previous boundary",
+      "steps": "From variation f8 click Previous twice",
+      "observed": "At variation f9 Previous becomes disabled; Next remains enabled; cannot step back directly into branch point"
+    },
+    {
+      "feature": "Delete active variation",
+      "steps": "Click variation X while f9 selected",
+      "observed": "Variation disappears; current position restores mainline e2, blue e9/red e2, both wall counts10"
+    },
+    {
+      "feature": "Variation link restore",
+      "url": "https://barricade.gg/analysis?moves=KYJgNMAcYBbALEA&var=0%3Af9%2Ce3%2Cf8",
+      "observed": "All three variation moves restored; automatically selected final variation f8; mainline retained"
+    },
+    {
+      "feature": "Resign metadata absence",
+      "steps": "Open prior local game sample which ended with blue resignation",
+      "observed": "Replay shows mainline and wall counts but no blue-resigned/red-won result statement; static parser only infers goal result from pawn row in moves-only links"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-05",
+  "scope": "Public frontend assets for /local and /analysis; no private repository or server implementation accessed",
+  "sources": [
+    {
+      "file": "fc23234c60059686.js",
+      "role": "本地对战入口与认输确认",
+      "source_url": "https://barricade.gg/_next/static/chunks/fc23234c60059686.js",
+      "format": "Published JavaScript, formatted with Prettier; original identifiers retained",
+      "formatted_sha256": "f8f30a239e6007180cd09d90b8f71ff9dc8a067335ce38ca06f77c9ce6c07e26"
+    },
+    {
+      "file": "faf038e02f6e9b68.js",
+      "role": "规则、寻路、GameProvider 与悔棋",
+      "source_url": "https://barricade.gg/_next/static/chunks/faf038e02f6e9b68.js",
+      "format": "Published JavaScript, formatted with Prettier; original identifiers retained",
+      "formatted_sha256": "68293d533c9b27cc3c688a576a579cf95c7e62e8643a9f8696c4b9eb12d046c3"
+    },
+    {
+      "file": "b99ebf75b97cb2f1.js",
+      "role": "棋盘 UI、交互、分享链接生成",
+      "source_url": "https://barricade.gg/_next/static/chunks/b99ebf75b97cb2f1.js",
+      "format": "Published JavaScript, formatted with Prettier; original identifiers retained",
+      "formatted_sha256": "7628e1607150801a72d90cb0abb637e8df7af55330e8ade6c6608133da582bfb"
+    },
+    {
+      "file": "fc2a85442ca07528.js",
+      "role": "棋谱重放与坐标转换",
+      "source_url": "https://barricade.gg/_next/static/chunks/fc2a85442ca07528.js",
+      "format": "Published JavaScript, formatted with Prettier; original identifiers retained",
+      "formatted_sha256": "1c112cefcf955b774f9e8d3521c45e7683e607d15bbac381fe332b1ed8896761"
+    },
+    {
+      "file": "d1dde131bf60bbe8.js",
+      "role": "回放页、播放控制、变化分支与引擎分析调用",
+      "source_url": "https://barricade.gg/_next/static/chunks/d1dde131bf60bbe8.js",
+      "format": "Published JavaScript, formatted with Prettier; original identifiers retained",
+      "formatted_sha256": "ec1349f96b12ea5da446f73154b5dd196b1f6afcdaea5b4dbcb591a2e80b169f"
+    },
+    {
+      "file": "fd863653c9bae7ee.js",
+      "role": "URI 棋谱压缩编解码与游戏读取服务",
+      "source_url": "https://barricade.gg/_next/static/chunks/fd863653c9bae7ee.js",
+      "format": "Published JavaScript, formatted with Prettier; original identifiers retained",
+      "formatted_sha256": "eda8f857f5132da266cf9bfdfe1d24bb55211fff43e7e1ec341e94007e99313a"
+    },
+    {
+      "file": "13c4de27b157c2de.js",
+      "role": "Canvas 视频预览、录制、转码及服务端导出分支",
+      "source_url": "https://barricade.gg/_next/static/chunks/13c4de27b157c2de.js",
+      "format": "Published JavaScript, formatted with Prettier; original identifiers retained",
+      "formatted_sha256": "f30e1fdad47f9426f1b56fb9814f13d0692cbc1c291b5289dfbc32189c527b1b"
+    },
+    {
+      "file": "8da57accf9ee3c86.js",
+      "role": "公开前端 API 客户端",
+      "source_url": "https://barricade.gg/_next/static/chunks/8da57accf9ee3c86.js",
+      "format": "Published JavaScript, formatted with Prettier; original identifiers retained",
+      "formatted_sha256": "9f93c1995b2c0ea96309681a4ab30ffd084b3cddb0e4e234fad2e48d65e83385"
+    }
+  ],
+  "publication_scope": "Source URLs, formatted snapshot hashes and observations only. Third-party JavaScript bundles are not vendored."
+}

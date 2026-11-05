@@ -1,0 +1,15 @@
+{
+  "recordedActionsChecked": 46,
+  "allActionsLegal": true,
+  "reconstructedReplayMatches": true,
+  "winnerFromGoal": 2,
+  "finalPawnSquares": {
+    "red": "e1",
+    "blue": "i1"
+  },
+  "remainingWalls": {
+    "red": 5,
+    "blue": 2
+  },
+  "limitations": "Independent local rules/codec verification, not an end-to-end browser replay test."
+}

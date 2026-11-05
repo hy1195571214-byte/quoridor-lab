@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "episode_id": "fe835238247f425c99425c2d6a1fb5b7",
+  "config": {
+    "expert_side": 1,
+    "policy": "shortest",
+    "seed": 0,
+    "max_plies": 160,
+    "opponent": "expert"
+  },
+  "started_at": "2026-11-05T03:44:55.691763+00:00",
+  "finished_at": "2026-11-05T03:45:19.769236+00:00",
+  "status": "completed",
+  "winner": 1,
+  "finished_reason": "goal",
+  "teacher_reward": 1,
+  "ply_count": 25,
+  "moves": [
+    "e2",
+    "e8",
+    "e3",
+    "e7",
+    "e4",
+    "e6",
+    "he3",
+    "e5",
+    "vf4",
+    "d4",
+    "hc3",
+    "c4",
+    "ha3",
+    "d4",
+    "e5",
+    "e4",
+    "e6",
+    "f4",
+    "vf6",
+    "f5",
+    "e7",
+    "f6",
+    "e8",
+    "f7",
+    "e9"
+  ],
+  "final": {
+    "pawns": [
+      "e9",
+      "f7"
+    ],
+    "walls": [
+      [
+        "h",
+        5,
+        0
+      ],
+      [
+        "h",
+        5,
+        2
+      ],
+      [
+        "h",
+        5,
+        4
+      ],
+      [
+        "v",
+        2,
+        5
+      ],
+      [
+        "v",
+        4,
+        5
+      ]
+    ],
+    "remaining_walls": [
+      5,
+      10
+    ],
+    "turn": 2,
+    "winner": 1,
+    "finished_reason": "goal",
+    "ply": 25,
+    "moves": [
+      "e2",
+      "e8",
+      "e3",
+      "e7",
+      "e4",
+      "e6",
+      "he3",
+      "e5",
+      "vf4",
+      "d4",
+      "hc3",
+      "c4",
+      "ha3",
+      "d4",
+      "e5",
+      "e4",
+      "e6",
+      "f4",
+      "vf6",
+      "f5",
+      "e7",
+      "f6",
+      "e8",
+      "f7",
+      "e9"
+    ]
+  },
+  "run_seconds": 24.077060625015292
+}

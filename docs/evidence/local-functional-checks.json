@@ -1,0 +1,43 @@
+{
+  "scope": "Additional local match UI checks by a delegated agent",
+  "ui_confirmed": [
+    {
+      "feature": "Invalid move",
+      "action": "Click e3 from the initial position",
+      "result": "No move and no history entry; subsequent legal e2 succeeds"
+    },
+    {
+      "feature": "Crossing wall rejection",
+      "action": "After e2,e8,he4 attempt a vertical wall through he4",
+      "result": "Shows 路障不能交叉。; history and wall counts unchanged"
+    },
+    {
+      "feature": "Undo to start",
+      "action": "Undo e2,e8,he4 three times",
+      "result": "Initial pawn positions and 10/10 wall counts restored; empty history; undo disabled"
+    },
+    {
+      "feature": "Wall rack",
+      "action": "Toggle 拖放路障",
+      "result": "Horizontal and vertical draggable wall trays appear; this is rack visibility, not mutually exclusive move mode"
+    },
+    {
+      "feature": "Refresh",
+      "action": "Reload the local page after making moves and showing the rack",
+      "result": "Match resets to start; rack visibility preference remains"
+    }
+  ],
+  "not_verified": [
+    "Successful wall placement through automated drag",
+    "Normal goal-reaching finish",
+    "Last-route blocking via UI",
+    "Continue play after board flip"
+  ],
+  "source_references": {
+    "rackPreference": "b99ebf75b97cb2f1.js:7541,9363",
+    "freshProvider": "fc23234c60059686.js:720; faf038e02f6e9b68.js:928",
+    "undo": "faf038e02f6e9b68.js:1220",
+    "resignConfirmation4Seconds": "fc23234c60059686.js:685"
+  },
+  "desktop_released": true
+}
