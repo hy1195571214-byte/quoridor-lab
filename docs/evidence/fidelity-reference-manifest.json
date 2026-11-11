@@ -1,0 +1,222 @@
+{
+  "date": "2026-11-12",
+  "reference_build": "2026-11-10T13:03:31.824Z",
+  "acquisition": "Public HTML, CSS and JavaScript read using ordinary HTTP GET. Isolated browser loaded these exact resources through a loopback read-only bridge. Native Chrome directly showed the live /local interface. External account and advertising requests were blocked in the isolated comparison.",
+  "files": [
+    {
+      "url": "https://barricade.gg/_next/static/chunks/0aae7480c0657e89.js",
+      "bytes": 57494,
+      "sha256": "7038656d0201b1ba288e32204bd048614c59c8fee9cb538870c8ab23ba4d804b"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/259afcd77dbd459b.js",
+      "bytes": 3854,
+      "sha256": "f9dfb8b370e6faea7e726a3d142a894952a346b73f91c7c589012a1280cb106c"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/2a610e36e65136fc.js",
+      "bytes": 151581,
+      "sha256": "e3fae4bb3cb19defb110ce057417268bfa046dbbb49369b54439feb0cccf4310"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/2b58f0fe5d7439bc.js",
+      "bytes": 49981,
+      "sha256": "3d59e2e22582cf8779e388b60bced68c34b9e3f166ccc22e6962f77724357bb0"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/3bd68b2bb966352e.js",
+      "bytes": 315575,
+      "sha256": "c5316699bd4cc7ec4a682aad0b3c25bdffd6694ecdfec9c48e2fbc9ef7d21aa6"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/40ec637bb1701d07.js",
+      "bytes": 70021,
+      "sha256": "23a110fe50757213baebfa696557613ad3f6062b37e79a6287d8b69e00eec6e1"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/4421de0edef10258.js",
+      "bytes": 25945,
+      "sha256": "5ffe41ce19187f7ce0177f59a01f95e52149509c15c9171d6abbac1fe28a76d5"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/4bd2c4cf0a9a6854.css",
+      "bytes": 441,
+      "sha256": "0d1b7629728c8d8ef901f51c36b99b598dbe92cc64bb37e1a01f7044c805c4a4"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/4c3e874ee3a42ebe.js",
+      "bytes": 33801,
+      "sha256": "c733050e6cdcbdf85ef96f71a08d530c715e36ce9282b80c4e5d457e57a1ac52"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/5eb625003e701945.js",
+      "bytes": 85492,
+      "sha256": "06487ffb77eb77c125302a171f49cd57013593a28e390ee4ab4a933327964252"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/60edc413b87b83c8.js",
+      "bytes": 87436,
+      "sha256": "72b3f8bf851a6c14c38757fefd3f0dba22dfb996a77111d6226d37c37ad43ae5"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/617edcfce41c56e8.js",
+      "bytes": 33677,
+      "sha256": "fbe2bc0cbff0b5151b5864838c5d4f964ff020bc0ac6b53b0fc130588bb677c3"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/64c0a5e3a0354479.js",
+      "bytes": 27854,
+      "sha256": "b38a9d44fb5e6f56a009ae2a348b9c1c87c7253033d7b2a56c4ad86adbff1af2"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/6622fd295f614932.js",
+      "bytes": 11520,
+      "sha256": "fe4b6b6eac825e39556e871d46ab28b6d0961233da822282ac54a0e49ad45415"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/6ba325827bb42f55.js",
+      "bytes": 1800,
+      "sha256": "c871a15b563deeb2aedff615497091ef8e4593110ccebf6fe13f21abc06fc6b7"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/6f0ba7f873609880.js",
+      "bytes": 405271,
+      "sha256": "a96601f94e331ba68e987c1ecfea5111395aa55a4504bca657fa886e85714042"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/7552008f97d717ab.js",
+      "bytes": 10483,
+      "sha256": "023c609e4cbe65d10092ad2fd053cc42ad83b48c258c49a656d9220ea480ae3e"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/8008d994f91f0fb6.js",
+      "bytes": 213853,
+      "sha256": "ae8aaca479bee4fdc75af1a36ef9b61fd493215932b562ff25cdb92d7c28840c"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/832e0fb0ac9b7ff7.js",
+      "bytes": 22230,
+      "sha256": "84d2d1fff743b924888e0a4dfce23c9161e69029cff06b54ada694874e219667"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/87374b633c008ae6.js",
+      "bytes": 23569,
+      "sha256": "af4512e339e98ced110b3d446bca1a4c48522ec70a2acfd987c92b806c00a0f1"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/9052aafb914ed91d.js",
+      "bytes": 22790,
+      "sha256": "61f970b0b5ff3ea660599a1396908a012f8292636bb97513fb4ed3e95eb053af"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/93703ceb315724a1.js",
+      "bytes": 19769,
+      "sha256": "9404f481e0eea8373f520017ab7872e9543ec9398d7309380c57da8acea6d4e4"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/9ac7273208c61843.js",
+      "bytes": 67678,
+      "sha256": "8a46d52116a5a86e99fbe70331e02a20f58067059e85dd463eec385fba57e691"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/a50f27efd26b0e93.js",
+      "bytes": 43890,
+      "sha256": "f837a8b13fda870e70e7e0ad3995aacd8ffb2609ecac4643bd92c8af2ceb19bd"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/a983e4595bc69eee.js",
+      "bytes": 37320,
+      "sha256": "a881541ca5ec9dd464603188a4d0c7c70e6f1218823a34e074275898b4ec9234"
+    },
+    {
+      "url": "https://barricade.gg/analysis",
+      "bytes": 63955,
+      "sha256": "b7f4dc339a3ecf46ee6d2059fddfc2864a106bc432c99ffd6583d50f64d8922e"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/b096041667a20a67.js",
+      "bytes": 26125,
+      "sha256": "6cb27a412ce0bcd029b1715f343238e9949a1828a225b6f3bf9e50134a55cfa2"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/b555316c16d54464.js",
+      "bytes": 18028,
+      "sha256": "3609a09f30e4cc76b52ee78328fd9dd2ce2b055998b6694c26df9ecbcd253557"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/c6936b81c862d0fe.js",
+      "bytes": 37270,
+      "sha256": "491042cbcab38d59e833971ed4a825fbb719ea1cb648365fa242864956831742"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/c85d3b11dbd2a18b.js",
+      "bytes": 41641,
+      "sha256": "89f062f3fc25aec9f43c1d1d11917a78e4c194201326794f31689e9f17832a57"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/cb94d00beb0e5fc1.js",
+      "bytes": 24357,
+      "sha256": "52ec4bbcb07ee2226e6eabecb3f9dd830a7ce73e7e5698fcc3208ca458f5aea9"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/ce515f6910b758a7.js",
+      "bytes": 62740,
+      "sha256": "27914cd4dbcc7093373c769e64aa17162d6a9da80f44ac8a278428d42700c9f5"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/d1dde131bf60bbe8.js",
+      "bytes": 52547,
+      "sha256": "46c1ab02778f11be139202597d904aaf37bdf39802803330807af2f36e9b7921"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/d6da361a6eebef19.js",
+      "bytes": 12527,
+      "sha256": "dc60ee2f7109f7c620016d334895c7dd1bf3a9944be6661d5fb5cf651aa9fa2c"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/d898bd552f94c4d2.js",
+      "bytes": 56890,
+      "sha256": "8a61a4467e9bb34b17ea395e8e0de66952753c40e0e6ab8fe7bd36e9cffe3606"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/d9c6dded3be3a9db.js",
+      "bytes": 177549,
+      "sha256": "f1322cdcd946f299acda9a4d4f258ecf085e33205fae629de74cf28af5c3b8bf"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/dbdafe9c0d8ece8a.css",
+      "bytes": 134842,
+      "sha256": "f557c09c410f87e3448385bd90b4bc818f0c8774a34f911259c8b5f1e07c9954"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/f08ea308250c89b8.js",
+      "bytes": 24400,
+      "sha256": "ab7b3c3df75e1f55a60af1fe2ad38304f83c7e134b6f5c661059b5aa09f08dd4"
+    },
+    {
+      "url": "https://barricade.gg/favicon.svg",
+      "bytes": 10145,
+      "sha256": "bc7c9360d005459d68078f6e0ffa8f2af88642b00bf13638edb7b8059a59118c"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/fcf8be9fb5238f3e.css",
+      "bytes": 30727,
+      "sha256": "8c93478aa09318fdeb8d6cc611964d0dac6f6f6b21e9abd4ee1ad316960c7e7a"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/fee9788786cda20c.js",
+      "bytes": 39385,
+      "sha256": "07d70f9b321eb5f8111042a6429cd6ff637c3e898929f84dad4c92e92d3ca78f"
+    },
+    {
+      "url": "https://barricade.gg/local",
+      "bytes": 22199,
+      "sha256": "a7b6284ecc6b17b7a5806a9f5ac27d505c453577b0e25694c594346a0a945f68"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/turbopack-b157025e05e945d6.js",
+      "bytes": 10407,
+      "sha256": "2144b681f4abe5a2887335f994e66fc2c1dfdb023834591d1485922622c10091"
+    }
+  ]
+}

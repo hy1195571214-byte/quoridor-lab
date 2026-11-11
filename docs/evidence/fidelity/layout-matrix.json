@@ -1,0 +1,268 @@
+[
+  {
+    "width": 1440,
+    "height": 701,
+    "mode": "local",
+    "reference": {
+      "x": 300.546875,
+      "y": 36.046875,
+      "width": 534.90625,
+      "height": 534.90625,
+      "overflow": false
+    },
+    "replica": {
+      "x": 300.546875,
+      "y": 36.046875,
+      "width": 534.90625,
+      "height": 534.90625,
+      "overflow": false
+    }
+  },
+  {
+    "width": 1440,
+    "height": 701,
+    "mode": "analysis?moves=KYJgNMAcYBbALEA",
+    "reference": {
+      "x": 383.546875,
+      "y": 36.046875,
+      "width": 534.90625,
+      "height": 534.90625,
+      "overflow": false
+    },
+    "replica": {
+      "x": 383.546875,
+      "y": 36.046875,
+      "width": 534.90625,
+      "height": 534.90625,
+      "overflow": false
+    }
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "mode": "local",
+    "reference": {
+      "x": 8,
+      "y": 116,
+      "width": 374,
+      "height": 374,
+      "overflow": false
+    },
+    "replica": {
+      "x": 8,
+      "y": 116,
+      "width": 374,
+      "height": 374,
+      "overflow": false
+    }
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "mode": "analysis?moves=KYJgNMAcYBbALEA",
+    "reference": {
+      "x": 8,
+      "y": 201,
+      "width": 374,
+      "height": 374,
+      "overflow": false
+    },
+    "replica": {
+      "x": 8,
+      "y": 201,
+      "width": 374,
+      "height": 374,
+      "overflow": false
+    }
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "mode": "local",
+    "reference": {
+      "x": 8,
+      "y": 52,
+      "width": 304,
+      "height": 304,
+      "overflow": false
+    },
+    "replica": {
+      "x": 8,
+      "y": 52,
+      "width": 304,
+      "height": 304,
+      "overflow": false
+    }
+  },
+  {
+    "width": 320,
+    "height": 568,
+    "mode": "analysis?moves=KYJgNMAcYBbALEA",
+    "reference": {
+      "x": 8,
+      "y": 201,
+      "width": 304,
+      "height": 304,
+      "overflow": false
+    },
+    "replica": {
+      "x": 8,
+      "y": 201,
+      "width": 304,
+      "height": 304,
+      "overflow": false
+    }
+  },
+  {
+    "width": 768,
+    "height": 1024,
+    "mode": "local",
+    "reference": {
+      "x": 61,
+      "y": 120,
+      "width": 646,
+      "height": 646,
+      "overflow": false
+    },
+    "replica": {
+      "x": 61,
+      "y": 120,
+      "width": 646,
+      "height": 646,
+      "overflow": false
+    }
+  },
+  {
+    "width": 768,
+    "height": 1024,
+    "mode": "analysis?moves=KYJgNMAcYBbALEA",
+    "reference": {
+      "x": 16,
+      "y": 207,
+      "width": 736,
+      "height": 736,
+      "overflow": false
+    },
+    "replica": {
+      "x": 16,
+      "y": 207,
+      "width": 736,
+      "height": 736,
+      "overflow": false
+    }
+  },
+  {
+    "width": 900,
+    "height": 700,
+    "mode": "local",
+    "reference": {
+      "x": 245,
+      "y": 92,
+      "width": 410,
+      "height": 410,
+      "overflow": false
+    },
+    "replica": {
+      "x": 245,
+      "y": 92,
+      "width": 410,
+      "height": 410,
+      "overflow": false
+    }
+  },
+  {
+    "width": 900,
+    "height": 700,
+    "mode": "analysis?moves=KYJgNMAcYBbALEA",
+    "reference": {
+      "x": 211,
+      "y": 207,
+      "width": 478,
+      "height": 478,
+      "overflow": false
+    },
+    "replica": {
+      "x": 211,
+      "y": 207,
+      "width": 478,
+      "height": 478,
+      "overflow": false
+    }
+  },
+  {
+    "width": 1024,
+    "height": 768,
+    "mode": "local",
+    "reference": {
+      "x": 77.71875,
+      "y": 38.71875,
+      "width": 596.546875,
+      "height": 596.546875,
+      "overflow": false
+    },
+    "replica": {
+      "x": 77.71875,
+      "y": 38.71875,
+      "width": 596.546875,
+      "height": 596.546875,
+      "overflow": false
+    }
+  },
+  {
+    "width": 1024,
+    "height": 768,
+    "mode": "analysis?moves=KYJgNMAcYBbALEA",
+    "reference": {
+      "x": 249,
+      "y": 113,
+      "width": 448,
+      "height": 448,
+      "overflow": false
+    },
+    "replica": {
+      "x": 249,
+      "y": 113,
+      "width": 448,
+      "height": 448,
+      "overflow": false
+    }
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "mode": "local",
+    "reference": {
+      "x": 175,
+      "y": 40,
+      "width": 626,
+      "height": 626,
+      "overflow": false
+    },
+    "replica": {
+      "x": 175,
+      "y": 40,
+      "width": 626,
+      "height": 626,
+      "overflow": false
+    }
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "mode": "analysis?moves=KYJgNMAcYBbALEA",
+    "reference": {
+      "x": 258,
+      "y": 40,
+      "width": 626,
+      "height": 626,
+      "overflow": false
+    },
+    "replica": {
+      "x": 258,
+      "y": 40,
+      "width": 626,
+      "height": 626,
+      "overflow": false
+    }
+  }
+]

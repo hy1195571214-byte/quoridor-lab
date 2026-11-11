@@ -17,6 +17,7 @@ const result = await build({
   target: ["chrome100", "firefox100", "safari15.4"],
   define: { "process.env.NODE_ENV": '"production"' },
   legalComments: "none",
+  loader: { ".mp3": "dataurl" },
 });
 const svg = await readFile(path.join(root, "public/source-assets/favicon.svg"), "utf8");
 const icon = `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
@@ -24,7 +25,7 @@ const js = result.outputFiles.find((file) => file.path.endsWith(".js")).text
   .replaceAll("/source-assets/favicon.svg", icon)
   .replaceAll(/<\/script/gi, "<\\/script");
 const css = result.outputFiles.find((file) => file.path.endsWith(".css"))?.text ?? "";
-const notices = await Promise.all(["react", "react-dom", "scheduler", "lz-string", "@heroicons/react"]
+const notices = await Promise.all(["react", "react-dom", "scheduler", "lz-string", "@heroicons/react", "canvas-confetti"]
   .map(async (name) => `${name}\n${await readFile(path.join(root, "node_modules", name, "LICENSE"), "utf8")}`));
 const noticeText = notices.join("\n\n--------------------\n\n");
 const html = `<!doctype html>

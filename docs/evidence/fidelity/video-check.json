@@ -1,0 +1,135 @@
+{
+  "playbackEnded": true,
+  "elapsedMs": 6323,
+  "audit": [
+    {
+      "event": "constructed",
+      "tracks": [
+        {
+          "kind": "audio",
+          "state": "live",
+          "enabled": true
+        },
+        {
+          "kind": "video",
+          "state": "live",
+          "enabled": true
+        }
+      ],
+      "options": {
+        "mimeType": "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+        "videoBitsPerSecond": 6000000
+      },
+      "mime": "video/mp4;codecs=avc1.42E01E,mp4a.40.2"
+    },
+    {
+      "event": "start",
+      "time": 4179.5
+    },
+    {
+      "event": "sound",
+      "time": 4195.70000000298,
+      "context": "running"
+    },
+    {
+      "event": "actual-start",
+      "time": 4261.4000000059605
+    },
+    {
+      "event": "sound",
+      "time": 4528.10000000149,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 4862.5,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 5195.5,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 5527.80000000447,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 5862.10000000149,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 6195.80000000447,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 6530,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 6861.80000000447,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 7194.80000000447,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 7529.70000000298,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 7862,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 8194.30000000447,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 8529.5,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 8862.80000000447,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 9195.5,
+      "context": "running"
+    },
+    {
+      "event": "sound",
+      "time": 9527.90000000596,
+      "context": "running"
+    },
+    {
+      "event": "stop",
+      "time": 10366.10000000149
+    }
+  ],
+  "filename": "barricade-replay.mp4",
+  "contextTimes": [
+    {
+      "elapsed": 0.005333333333333333,
+      "state": "running"
+    },
+    {
+      "elapsed": 2,
+      "state": "running"
+    }
+  ],
+  "soundChecked": true
+}

@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -9,17 +10,18 @@ import {
   ArrowDownTrayIcon,
   ArrowLeftIcon,
   ArrowPathIcon,
+  ArrowUturnLeftIcon,
   ArrowsUpDownIcon,
-  BackwardIcon,
+  Bars3Icon,
   BookOpenIcon,
-  ChartBarIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
   EllipsisHorizontalIcon,
   FlagIcon,
-  ForwardIcon,
   HomeIcon,
+  GlobeAltIcon,
   LinkIcon,
   PauseIcon,
   PlayIcon,
@@ -32,7 +34,9 @@ import {
   XMarkIcon,
   Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
+import { BackwardIcon, ForwardIcon, PlayIcon as PlaySolidIcon, PauseIcon as PauseSolidIcon } from "@heroicons/react/24/solid";
 import Board from "./components/Board.jsx";
+import ResultCard from "./components/ResultCard.jsx";
 import ClipDialog from "./components/ClipDialog.jsx";
 import Lobby from "./components/Lobby.jsx";
 import { applyAction, notation, replay } from "./game/rules.js";
@@ -112,6 +116,10 @@ function IconButton({ icon: Icon, label, ...props }) {
   );
 }
 
+function AnalysisIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 4 8-9" /><path d="M15 6h5v5" /></svg>;
+}
+
 function Modal({ title, onClose, children, wide = false }) {
   const panel = useRef(null);
   useEffect(() => {
@@ -175,7 +183,7 @@ function Sidebar({ navigate, path }) {
         }}
       >
         <img src="/source-assets/favicon.svg" alt="" />
-        <strong>Barricade</strong>
+        <strong>barricade.gg</strong>
       </a>
       <nav>
         {[
@@ -199,6 +207,7 @@ function Sidebar({ navigate, path }) {
         ))}
       </nav>
       <div className="account-links">
+        <p>保存对局，获得等级分和适合你水平的谜题。</p>
         <button onClick={() => navigate("/signup")}>注册</button>
         <button onClick={() => navigate("/login")}>登录</button>
       </div>
@@ -213,16 +222,10 @@ function Sidebar({ navigate, path }) {
           <BookOpenIcon />
           玩法
         </a>
-        <a
-          href="/premium"
-          onClick={(event) => {
-            event.preventDefault();
-            navigate("/premium");
-          }}
-        >
-          Premium
-        </a>
-        <span className="language">简体中文</span>
+        <span className="language">
+          <GlobeAltIcon />
+          简体中文
+        </span>
         <a
           href="/settings"
           onClick={(event) => {
@@ -235,6 +238,51 @@ function Sidebar({ navigate, path }) {
         </a>
       </nav>
     </aside>
+  );
+}
+
+function MobileReplayHeader({ navigate }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <header className="mobile-replay-header">
+      <div className="mobile-replay-header-top">
+        <button aria-label="回到大厅" onClick={() => navigate("/")}>
+          <img src="/source-assets/favicon.svg" alt="" />
+        </button>
+        <div className="mobile-header-actions">
+          <button className="mobile-login" onClick={() => navigate("/login")}>
+            登录
+          </button>
+          <div className="menu-anchor">
+            <IconButton
+              icon={Bars3Icon}
+              label="导航菜单"
+              aria-expanded={open}
+              onClick={() => setOpen(!open)}
+            />
+            {open && (
+              <div className="options-menu mobile-header-menu">
+                <button onClick={() => navigate("/rules")}>玩法</button>
+                <button onClick={() => navigate("/settings")}>设置</button>
+                <button onClick={() => navigate("/signup")}>注册</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <nav>
+        {[
+          ["对局", "/"],
+          ["谜题", "/puzzle"],
+          ["观战", "/tv"],
+          ["排行榜", "/leaderboard"],
+        ].map(([label, href]) => (
+          <button key={href} onClick={() => navigate(href)}>
+            {label}
+          </button>
+        ))}
+      </nav>
+    </header>
   );
 }
 
@@ -259,6 +307,42 @@ function PlayerCard({ player, state, name, highlighted }) {
         </span>
         <span>{state.remaining[player - 1]}/10</span>
       </div>
+    </div>
+  );
+}
+
+function Variation({ branch, branchId, selection, onBranch, onDeleteBranch }) {
+  return (
+    <div
+      className={`variation ${selection.branchId === branchId ? "selected-variation" : ""}`}
+    >
+      <span>(</span>
+      {branch.moves.map((move, index) => {
+        const ply = branch.anchor + 1 + index;
+        const number = Math.floor(ply / 2) + 1;
+        return (
+          <React.Fragment key={index}>
+            {(ply % 2 === 0 || index === 0) && (
+              <span className="variation-number">
+                {number}
+                {ply % 2 ? "..." : "."}
+              </span>
+            )}
+            <button
+              className={`${ply % 2 ? "blue-move" : "red-move"} ${selection.branchId === branchId && selection.branchCursor === index ? "selected-move" : ""}`}
+              onClick={() => onBranch(branchId, index)}
+            >
+              {move}
+            </button>
+          </React.Fragment>
+        );
+      })}
+      <span>)</span>
+      <IconButton
+        icon={XMarkIcon}
+        label={`删除变化 ${branchId + 1}`}
+        onClick={() => onDeleteBranch(branchId)}
+      />
     </div>
   );
 }
@@ -298,33 +382,16 @@ function MoveList({
             {record.variations.map(
               (branch, branchId) =>
                 Math.floor(branch.anchor / 2) === round && (
-                  <div
+                  <Variation
                     key={branchId}
-                    className={`variation ${selection.branchId === branchId ? "selected-variation" : ""}`}
-                  >
-                    <span className="variation-label">变化</span>
-                    <div>
-                      {branch.moves.map((move, index) => (
-                        <button
-                          key={index}
-                          onClick={() => onBranch(branchId, index)}
-                          className={
-                            selection.branchId === branchId &&
-                            selection.branchCursor === index
-                              ? "selected-move"
-                              : ""
-                          }
-                        >
-                          {move}
-                        </button>
-                      ))}
-                    </div>
-                    <IconButton
-                      icon={TrashIcon}
-                      label={`删除变化 ${branchId + 1}`}
-                      onClick={() => onDeleteBranch(branchId)}
-                    />
-                  </div>
+                    {...{
+                      branch,
+                      branchId,
+                      selection,
+                      onBranch,
+                      onDeleteBranch,
+                    }}
+                  />
                 ),
             )}
           </React.Fragment>
@@ -333,30 +400,10 @@ function MoveList({
       {record.variations.map(
         (branch, branchId) =>
           branch.anchor === -1 && (
-            <div key={branchId} className="variation">
-              <span className="variation-label">开局变化</span>
-              <div>
-                {branch.moves.map((move, index) => (
-                  <button
-                    key={index}
-                    className={
-                      selection.branchId === branchId &&
-                      selection.branchCursor === index
-                        ? "selected-move"
-                        : ""
-                    }
-                    onClick={() => onBranch(branchId, index)}
-                  >
-                    {move}
-                  </button>
-                ))}
-              </div>
-              <IconButton
-                icon={TrashIcon}
-                label={`删除变化 ${branchId + 1}`}
-                onClick={() => onDeleteBranch(branchId)}
-              />
-            </div>
+            <Variation
+              key={branchId}
+              {...{ branch, branchId, selection, onBranch, onDeleteBranch }}
+            />
           ),
       )}
       <div ref={end} />
@@ -448,6 +495,9 @@ export default function App() {
   const [muted, setMuted] = useState(() => readPreference("muted", false));
   const [light, setLight] = useState(() => readPreference("light", false));
   const [rack, setRack] = useState(() => readPreference("rack", false));
+  const [rackExpanded, setRackExpanded] = useState(() =>
+    readPreference("rackExpanded", false),
+  );
   const [flipped, setFlipped] = useState(false);
   const [menu, setMenu] = useState(false);
   const [modal, setModal] = useState(null);
@@ -479,6 +529,7 @@ export default function App() {
   const resignTimer = useRef(null);
   const dragTimer = useRef(null);
   const dragCleanup = useRef(null);
+  const gameLayoutRef = useRef(null);
   const computerRoute = path === "/computer" || path === "/computer/intro";
   const isComputer = computerRoute && computerStarted;
   const isGame = path === "/local" || isComputer || isReplay;
@@ -511,6 +562,29 @@ export default function App() {
   const topPlayer = flipped ? 1 : 2;
   const bottomPlayer = 3 - topPlayer;
 
+  useLayoutEffect(() => {
+    if (!isGame || isReplay) return;
+    const layout = gameLayoutRef.current;
+    const board = layout?.querySelector("[data-board-root]");
+    const rack = layout?.querySelector(".mobile-rack");
+    if (!layout || !board || !rack) return;
+    let frame;
+    const measure = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (window.innerWidth >= 1024) return;
+        const boardTop = board.getBoundingClientRect().top + window.scrollY;
+        const fit = Math.max(260, Math.floor(window.innerHeight - boardTop - rack.offsetHeight - 118));
+        layout.style.setProperty("--mobile-board-fit", `${fit}px`);
+      });
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(rack);
+    window.addEventListener("resize", measure);
+    measure();
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); window.removeEventListener("resize", measure); };
+  }, [isGame, isReplay]);
+
   useEffect(() => {
     for (const id of ["dl", "rl", "search"])
       if (endpoints[id]?.trim())
@@ -525,6 +599,9 @@ export default function App() {
   useEffect(() => {
     writePreference("rack", rack);
   }, [rack]);
+  useEffect(() => {
+    writePreference("rackExpanded", rackExpanded);
+  }, [rackExpanded]);
   useEffect(() => {
     if (notice) {
       const timer = setTimeout(() => setNotice(""), 4000);
@@ -1105,13 +1182,25 @@ export default function App() {
       </>
     );
   }
-  function rackControls() {
+  function rackControls(mobile = false) {
+    if (!rack && !mobile) return null;
     return (
-      <div className={`wall-rack ${rack ? "" : "rack-collapsed"}`}>
-        <button className="rack-title" onClick={() => setRack(!rack)}>
-          拖放路障 <span>{state.remaining[state.turn - 1]}</span>
-        </button>
-        {rack && (
+      <div className="wall-rack">
+        {!mobile && (
+          <button
+            className="rack-title"
+            aria-expanded={rackExpanded}
+            onClick={() => setRackExpanded(!rackExpanded)}
+          >
+            拖放路障{" "}
+            <ChevronDownIcon
+              className={
+                rackExpanded ? "rack-chevron expanded" : "rack-chevron"
+              }
+            />
+          </button>
+        )}
+        {(mobile || rackExpanded) && (
           <div className="rack-pieces">
             {["h", "v"].map((kind) => (
               <button
@@ -1121,7 +1210,10 @@ export default function App() {
                 disabled={locked || state.remaining[state.turn - 1] === 0}
                 onPointerDown={(event) => startDrag(kind, event)}
               >
-                <i />
+                <span className={mobile ? "rack-chip" : "rack-plain"}>
+                  <i />
+                  {mobile && <span>{kind === "h" ? "横向" : "纵向"}</span>}
+                </span>
               </button>
             ))}
           </div>
@@ -1168,6 +1260,22 @@ export default function App() {
               <>
                 <button
                   onClick={() => {
+                    setMenu(false);
+                    copyText(shareUrl(encodeShare(record)));
+                  }}
+                >
+                  分享回放
+                </button>
+                <button
+                  onClick={() => {
+                    setMenu(false);
+                    setFlipped(!flipped);
+                  }}
+                >
+                  旋转棋盘
+                </button>
+                <button
+                  onClick={() => {
                     setModal("import");
                     setMenu(false);
                   }}
@@ -1182,7 +1290,7 @@ export default function App() {
       )
     );
   }
-  function replayControls() {
+  function replayControls(mobile = false) {
     return (
       <div className="replay-controls">
         <div className="playback-buttons">
@@ -1199,7 +1307,7 @@ export default function App() {
             disabled={!canPrev}
           />
           <IconButton
-            icon={playing ? PauseIcon : PlayIcon}
+            icon={playing ? PauseSolidIcon : PlaySolidIcon}
             label={playing ? "暂停" : "播放"}
             onClick={togglePlay}
             disabled={!record.moves.length && !branch}
@@ -1230,7 +1338,7 @@ export default function App() {
         </div>
         <div className="analysis-actions">
           <button onClick={() => setModal("analyze")}>
-            <ChartBarIcon />
+            <AnalysisIcon />
             分析对局
           </button>
           <IconButton
@@ -1238,16 +1346,29 @@ export default function App() {
             label="下载片段"
             onClick={() => setModal("clip")}
           />
-          <IconButton
-            icon={LinkIcon}
-            label="分享回放"
-            onClick={() => copyText(shareUrl(encodeShare(record)))}
-          />
-          <IconButton
-            icon={ArrowsUpDownIcon}
-            label="旋转棋盘"
-            onClick={() => setFlipped(!flipped)}
-          />
+          {mobile ? (
+            <div className="menu-anchor mobile-replay-options">
+              <IconButton
+                icon={EllipsisHorizontalIcon}
+                label="更多"
+                onClick={() => setMenu(!menu)}
+              />
+              {optionsMenu()}
+            </div>
+          ) : (
+            <>
+              <IconButton
+                icon={LinkIcon}
+                label="分享回放"
+                onClick={() => copyText(shareUrl(encodeShare(record)))}
+              />
+              <IconButton
+                icon={ArrowsUpDownIcon}
+                label="旋转棋盘"
+                onClick={() => setFlipped(!flipped)}
+              />
+            </>
+          )}
         </div>
       </div>
     );
@@ -1258,6 +1379,7 @@ export default function App() {
       {(isReplay || (!isGame && !computerRoute)) && (
         <Sidebar path={path} navigate={navigate} />
       )}
+      {isReplay && <MobileReplayHeader navigate={navigate} />}
       {path === "/" ? (
         <div className="with-sidebar">
           <Lobby
@@ -1270,10 +1392,10 @@ export default function App() {
         <main
           className={`game-stage ${isReplay ? "with-sidebar replay-stage" : ""}`}
         >
-          <div className="game-layout">
+          <div className="game-layout" ref={gameLayoutRef}>
             <div className="mobile-toolbar">
               <IconButton
-                icon={ArrowLeftIcon}
+                icon={ChevronLeftIcon}
                 label="回到大厅"
                 onClick={() => navigate("/")}
               />
@@ -1282,13 +1404,14 @@ export default function App() {
                   <button
                     onClick={resign}
                     disabled={locked}
-                    className={confirmResign ? "danger" : ""}
+                    className={`mobile-resign ${confirmResign ? "danger" : ""}`}
                   >
+                    <FlagIcon />
                     {confirmResign ? "确定？" : "认输"}
                   </button>
                   {!isComputer && (
                     <IconButton
-                      icon={ArrowPathIcon}
+                      icon={ArrowUturnLeftIcon}
                       label="悔棋"
                       disabled={!record.moves.length || finished}
                       onClick={undo}
@@ -1302,7 +1425,7 @@ export default function App() {
               >
                 {record.moves.length
                   ? `${Math.ceil(record.moves.length / 2)}. ${record.moves.slice(-2).join(" ")}`
-                  : "棋谱"}
+                  : "还没有走棋"}
               </button>
               <div className="menu-anchor">
                 <IconButton
@@ -1321,6 +1444,19 @@ export default function App() {
                 highlighted={state.turn === topPlayer && !finished}
               />
             </div>
+            {isReplay && (
+              <div className="mobile-replay-cards">
+                {[1, 2].map((player) => (
+                  <PlayerCard
+                    key={player}
+                    player={player}
+                    state={state}
+                    name={`Player ${player}`}
+                    highlighted={state.turn === player}
+                  />
+                ))}
+              </div>
+            )}
             <Board
               state={state}
               onAction={handleAction}
@@ -1332,35 +1468,35 @@ export default function App() {
               dragTarget={dragTarget}
             >
               {finished && (
-                <div className="result-card">
-                  <h1>
-                    {isComputer
+                <ResultCard
+                  title={isComputer
                       ? record.result.winner === human
                         ? "你赢了"
                         : "你输了"
-                      : `玩家 ${record.result.winner} 胜出`}
-                  </h1>
-                  <p>
-                    {record.result.reason === "resign"
-                      ? `${names[3 - record.result.winner]}认输`
+                      : `玩家 ${record.result.winner} 获胜！`}
+                  description={record.result.reason === "resign"
+                      ? `${names[3 - record.result.winner]}认输了`
                       : `${names[record.result.winner]}先抵达终点`}
-                  </p>
-                  <button className="primary" onClick={newGame}>
-                    再玩一局
-                  </button>
-                  <button className="secondary" onClick={() => navigate("/")}>
-                    回到大厅
-                  </button>
-                  <div className="result-links">
-                    <button onClick={() => navigate(encodeShare(record))}>
-                      分析对局
-                    </button>
-                    <button onClick={() => setModal("clip")}>下载片段</button>
-                    <button onClick={saveRecord}>保存棋谱</button>
-                  </div>
-                </div>
+                  onNewGame={newGame}
+                  onHome={() => navigate("/")}
+                  onAnalyze={() => navigate(encodeShare(record))}
+                  onSave={saveRecord}
+                />
               )}
             </Board>
+            {isReplay && (
+              <section className="mobile-replay-panel" aria-label="回放面板">
+                {replayControls(true)}
+                <MoveList
+                  record={record}
+                  selection={selection}
+                  onMain={selectMain}
+                  onBranch={selectBranch}
+                  onDeleteBranch={deleteBranch}
+                  replaying
+                />
+              </section>
+            )}
             <div className="mobile-bottom-card">
               <PlayerCard
                 player={bottomPlayer}
@@ -1371,7 +1507,7 @@ export default function App() {
             </div>
             <div className="mobile-rack">
               {statusPanel()}
-              {rackControls()}
+              {rackControls(true)}
               {isReplay && replayControls()}
             </div>
             <section
@@ -1379,20 +1515,28 @@ export default function App() {
               aria-label={isReplay ? "回放面板" : "对局面板"}
             >
               <header className="panel-toolbar">
-                <button className="lobby-button" onClick={() => navigate("/")}>
-                  <ArrowLeftIcon />
-                  大厅
-                </button>
+                {!isReplay && (
+                  <button
+                    className="lobby-button"
+                    onClick={() => navigate("/")}
+                  >
+                    <ArrowLeftIcon />
+                    大厅
+                  </button>
+                )}
+                {isReplay && <span className="replay-toolbar-spacer" />}
                 <IconButton
                   icon={muted ? SpeakerXMarkIcon : SpeakerWaveIcon}
                   label={muted ? "开启声音" : "关闭声音"}
                   onClick={() => setMuted(!muted)}
                 />
-                <IconButton
-                  icon={ArrowsUpDownIcon}
-                  label="旋转棋盘"
-                  onClick={() => setFlipped(!flipped)}
-                />
+                {!isReplay && (
+                  <IconButton
+                    icon={ArrowsUpDownIcon}
+                    label="旋转棋盘"
+                    onClick={() => setFlipped(!flipped)}
+                  />
+                )}
                 <div className="menu-anchor">
                   <IconButton
                     icon={EllipsisHorizontalIcon}
@@ -1402,14 +1546,28 @@ export default function App() {
                   {optionsMenu()}
                 </div>
               </header>
-              <div className="panel-player">
-                <PlayerCard
-                  player={topPlayer}
-                  state={state}
-                  name={names[topPlayer]}
-                  highlighted={state.turn === topPlayer && !finished}
-                />
-              </div>
+              {isReplay ? (
+                <div className="replay-player-cards">
+                  {[1, 2].map((player) => (
+                    <PlayerCard
+                      key={player}
+                      player={player}
+                      state={state}
+                      name={`Player ${player}`}
+                      highlighted={state.turn === player}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="panel-player">
+                  <PlayerCard
+                    player={topPlayer}
+                    state={state}
+                    name={names[topPlayer]}
+                    highlighted={state.turn === topPlayer && !finished}
+                  />
+                </div>
+              )}
               <MoveList
                 record={record}
                 selection={
@@ -1424,14 +1582,16 @@ export default function App() {
               />
               {statusPanel()}
               {rackControls()}
-              <div className="panel-player bottom-player">
-                <PlayerCard
-                  player={bottomPlayer}
-                  state={state}
-                  name={names[bottomPlayer]}
-                  highlighted={state.turn === bottomPlayer && !finished}
-                />
-              </div>
+              {!isReplay && (
+                <div className="panel-player bottom-player">
+                  <PlayerCard
+                    player={bottomPlayer}
+                    state={state}
+                    name={names[bottomPlayer]}
+                    highlighted={state.turn === bottomPlayer && !finished}
+                  />
+                </div>
+              )}
               {isReplay ? (
                 replayControls()
               ) : (

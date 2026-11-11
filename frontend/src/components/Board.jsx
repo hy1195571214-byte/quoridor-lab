@@ -31,6 +31,13 @@ export default function Board({
     return owners;
   }, [state.history]);
   const lastMove = state.history.at(-1);
+  const previousPawnSquare = useMemo(() => {
+    if (lastMove?.length !== 2) return null;
+    for (let index = state.history.length - 3; index >= 0; index -= 2) {
+      if (state.history[index].length === 2) return state.history[index];
+    }
+    return state.history.length % 2 ? "e1" : "e9";
+  }, [state.history, lastMove]);
   const cells = [];
   for (let row = 0; row < 9; row++) {
     for (let col = 0; col < 9; col++) {
@@ -45,7 +52,7 @@ export default function Board({
       cells.push(
         <button
           key={name}
-          className={`cell ${row === 0 ? "goal-red" : ""} ${row === 8 ? "goal-blue" : ""} ${legal && !analysis ? "legal" : ""} ${lastMove === name ? "last-move" : ""}`}
+          className={`cell ${row === 0 ? "goal-red" : ""} ${row === 8 ? "goal-blue" : ""} ${legal && !analysis ? "legal" : ""} ${lastMove === name ? "last-move" : ""} ${previousPawnSquare === name ? "move-from" : ""}`}
           style={{ gridRow: row * 2 + 2, gridColumn: col * 2 + 2 }}
           aria-label={`${name}${player ? (player === 1 ? "，红方棋子" : "，蓝方棋子") : ""}`}
           data-square={name}
@@ -123,13 +130,15 @@ export default function Board({
         <React.Fragment key={index}>
           <span
             className="coordinate coordinate-rank"
-            style={{ gridRow: index * 2 + 2, gridColumn: 19 }}
+            aria-hidden="true"
+            style={{ top: `calc(var(--board-pad) + ${(index + 0.5) / 9} * (100% - 2 * var(--board-pad)))` }}
           >
             {9 - index}
           </span>
           <span
             className="coordinate coordinate-file"
-            style={{ gridRow: 19, gridColumn: index * 2 + 2 }}
+            aria-hidden="true"
+            style={{ left: `calc(var(--board-pad) + ${(index + 0.5) / 9} * (100% - 2 * var(--board-pad)))` }}
           >
             {String.fromCharCode(97 + index)}
           </span>

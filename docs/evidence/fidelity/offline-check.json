@@ -1,0 +1,17 @@
+{
+  "title": "玩家 1 获胜！ 🏆",
+  "touchWall": 1,
+  "coarse": true,
+  "firstWall": 1,
+  "variation": "(\n1.\ne2\ne8\n)",
+  "httpRequestsWhileOffline": [],
+  "api": {
+    "status": 200,
+    "mask": 209,
+    "shape": [
+      8,
+      9,
+      9
+    ]
+  }
+}

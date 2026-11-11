@@ -11,7 +11,7 @@ const result = await runner.choose('shortest', { state, requestId: 'turn-1' });
 // result.action、result.action_id、result.notation
 runner.cancel();
 // 有可用本地模型服务时：
-agentRegistry.register('my-model', httpAgent('http://127.0.0.1:8000/agents/my-model/move'));
+agentRegistry.register('my-model', httpAgent('http://127.0.0.1:8765/agents/my-model/move'));
 ```
 
 `shortest` 是只移动棋子并选择最短路径的简单基线；`random` 从所有合法行动随机选择。它们不是训练模型。可注册 `async ({state, signal, requestId}) => action`；返回值可以是 action 对象、编号、记谱或带 `action`、`action_id`、`notation` 的对象。`workerAgent(worker)` 可包装 Worker，消息包含 `{state,requestId}`，响应需返回相同 `requestId` 和行动。每局使用独立 runner；新请求或 `cancel()` 使之前的结果失效，并通过 AbortSignal 请求取消。所有结果经过合法性检查。接入其他来源时应由应用提供适当的跨域设置。

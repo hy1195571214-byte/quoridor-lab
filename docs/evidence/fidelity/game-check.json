@@ -1,0 +1,20 @@
+{
+  "title": "玩家 1 获胜！ 🏆",
+  "desktop": {
+    "x": 407.984375,
+    "y": 165.484375,
+    "width": 320,
+    "height": 399
+  },
+  "mobile": {
+    "x": 8,
+    "y": 148.5,
+    "width": 374,
+    "height": 437
+  },
+  "focus": "再玩一局",
+  "reset": "e1，红方棋子",
+  "invalidWallRejected": true,
+  "download": "barricade-game.json",
+  "undoPawn": "e1，红方棋子"
+}

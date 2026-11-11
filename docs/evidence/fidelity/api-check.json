@@ -1,0 +1,19 @@
+{
+  "observation_shape": [
+    8,
+    9,
+    9
+  ],
+  "action_count": 209,
+  "unconfigured_model_status": 503,
+  "baseline": {
+    "action_id": 67,
+    "notation": "e2",
+    "source": "local:shortest",
+    "latency_seconds": 0.0,
+    "cached": false,
+    "metadata": {}
+  },
+  "record_crud": true,
+  "expert_network_requests": 0
+}

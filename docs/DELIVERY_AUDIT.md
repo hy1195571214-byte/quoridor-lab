@@ -1,6 +1,6 @@
 # 本地交付验收矩阵
 
-2026-11-11 本轮在最终网页代码上完成自动检查和 Chrome 实测。下表区分已实测项目与尚待交付环节；早期调查及训练实验见 [历史验证记录](VALIDATION.md)。
+下表保留 v0.1.0 于 2026-11-11 完成的检查。本次 v0.1.1 结果见下方专节。下表区分已实测项目与尚待交付环节；早期调查及训练实验见 [历史验证记录](VALIDATION.md)。
 
 | 需求 | 本轮证据与结果 | 状态 / 范围 |
 |---|---|---|
@@ -20,6 +20,29 @@
 
 本次检查截图已保存在 `docs/evidence/replica-desktop.png`、`replica-mobile.png`、`replica-replay.png` 和 `replica-clip.png`，实测棋谱为 `docs/evidence/replica-local-game.json`，测试摘要见 `docs/evidence/replica-verification.json`。参考站的早期观察与来源见 [公开源码核对](REPLICA_SOURCE_AUDIT.md) 和 [现场观察](REPLICA_LIVE_AUDIT.md)。
 
-## 剩余交付检查
+## v0.1.1 界面复刻与功能验收
+
+2026-11-12 在生产构建与解压后的离线文件上完成以下检查。普通 Chrome 曾直接显示原站本地对战页。隔离浏览器直接访问原站返回 403，因此布局对照通过只读资源桥运行从公开 URL 取得的原站 2026-11-10 构建 HTML、CSS、JS。对照环境阻断外部账号和广告请求。资源 URL、字节数与 SHA-256 见 `evidence/fidelity-reference-manifest.json`。
+
+| 项目 | 本版结果 | 证据 |
+|---|---|---|
+| 响应式棋盘 | 1440×701、390×844、320×568、768×1024、900×700、1024×768、1280×800 共 7 组视口，分别核对本地对战和回放。14 组棋盘 x/y/宽/高均与参考渲染测量相同，页面无横向溢出 | `evidence/fidelity/layout-matrix.json` 与配套截图 |
+| 完整对局与胜负卡片 | 正常点击完成 17 步胜局，交叉墙被拒，悔棋、重置和 JSON 保存通过；卡片桌面 320×399、手机 374×437，初始焦点位于再玩一局 | `evidence/fidelity/game-check.json` 与胜负截图 |
+| 回放与变化 | 载入 17 步 JSON，开局创建 e2/e8 变化并导出；棋盘获得焦点后 Space 以 5× 播放至末步；手机菜单与旋转通过 | `evidence/fidelity/replay-check.json`、`video-check.json`、`cancel-retry-check.json` |
+| 片段面板与导出 | 1440×824 下实测面板 384×677、预览 234×416，与原站位置相同。输出为 720×1280，17 步、3× 的 H.264 + AAC 文件为 6.1787 秒，取消后重试为 6.178033 秒，严格解码通过，首 250 ms 音频含非零信号 | `evidence/fidelity/media-verification.json`、`video-check.json` |
+| 离线与触控 | 独立目录打开 416,172 字节 HTML，断网完成触控拖墙、17 步胜局、键盘单步、变化和视频下载，无 HTTP 请求。保持 coarse pointer 开启，通过真实触摸事件拖放 ha8 成功 | `evidence/fidelity/offline-check.json` 与 `packaged-offline.png` |
+| 训练接口与记录 | 实际服务返回 8×9×9 观察及 209 动作掩码，基线合法应手，未配置模型返回 503；SQLite 创建读取删除及 file 页面跨域通过。本轮官网专家请求为 0 | `evidence/fidelity/api-check.json`、`offline-check.json` |
+| 自动检查 | 17 项 Python、3 项前端、4 项 Sites 通过；本轮 npm audit 报告 0 漏洞 | 本轮命令结果；远端检查以对应提交为准 |
+| 分发 | ZIP 包含离线 HTML、网页源码与构建、Python 后端、训练接口、样本、拆解规范和说明；CRC、逐文件 SHA-256 与私密缓存排除已检查 | 包内 `PACKAGE_MANIFEST.json` 与 Release 校验文件 |
+
+玩家卡片、坐标、合法提示、上步起终点、棋子 250 ms 动画、侧栏、拖墙托盘、手机回放和片段画面均已按来源核对。录制使用静音输出设备时钟，解决测试环境扬声器时钟停滞导致的缺帧与缺音轨。
+
+胜负卡片的原站账号推广区改为本地“对局记录 / 保存棋谱”，尺寸和按钮层级沿用参考布局。最短路和随机对手作为基线提供，DL、RL 与搜索策略通过接口接入。第三方图标和走棋、放墙音效已记录来源，其再分发许可尚未核实。
+
+几何检查覆盖列明的视口与组件，整体截图可能因字体和渲染环境有差别。实体 iOS/Safari、长棋谱在各浏览器的录制、原站账号/支付/匹配服务、训练后的模型棋力未在本轮验证。原站服务端流程未通过资源桥验证。
+
+新版入口见 [GitHub 最新发布](https://github.com/hy1195571214-byte/quoridor-barricade-lab/releases/latest)。
+
+## 先前交付检查
 
 独立目录解压及浏览器禁网测试、逐文件哈希和敏感缓存排除已通过。源码已上传至私有仓库，发布包分发位置为 [v0.1.0](https://github.com/hy1195571214-byte/quoridor-barricade-lab/releases/tag/v0.1.0)。实体 iOS/Safari 与本轮原站截图对照仍属于未覆盖范围。

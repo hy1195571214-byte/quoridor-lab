@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { replay } from "../game/rules.js";
+import { preloadGameSounds, playSoundInto } from "../game/preferences.js";
 import {
   XMarkIcon,
   PauseIcon,
@@ -8,10 +9,10 @@ import {
 } from "@heroicons/react/24/outline";
 import "./ClipDialog.css";
 
-const WIDTH = 540,
-  HEIGHT = 960,
+const WIDTH = 720,
+  HEIGHT = 1280,
   MAX_MOVES = 100;
-const colors = ["#ef4444", "#3b82f6"];
+const colors = ["#E5484D", "#3E63DD"];
 const MIME_TYPES = [
   "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
   "video/mp4;codecs=avc1.42E01E",
@@ -26,65 +27,102 @@ const supportedTypes = () =>
     : MIME_TYPES.filter((type) => MediaRecorder.isTypeSupported(type));
 
 function draw(ctx, state, previous, progress, flipped) {
-  ctx.fillStyle = "#09090b";
+  // Geometry and colors follow the original 9:16 canvas layout.
+  const size = 672, x = 24, unit = size / 47;
+  const cell = 4 * unit, gap = unit, pad = 1.5 * unit;
+  const badgeHeight = size * 96 / 1032, badgeWidth = size * 220 / 1032;
+  const y = (HEIGHT - size) / 2 + (badgeHeight + 28) / 2;
+  const badgeY = y - 28 - badgeHeight;
+  const badgePositions = [WIDTH / 2 - 12 - badgeWidth, WIDTH / 2 + 12];
+  ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
-  const x = 36,
-    y = 224,
-    size = 468,
-    pad = 12,
-    cell = (size - 2 * pad) / 11;
-  const step = cell * 1.25;
-  ctx.fillStyle = "#e2e8f0";
+  for (let i = 0; i < 2; i++) {
+    const player = flipped ? 1 - i : i;
+    const bx = badgePositions[i], barWidth = 0.55 * badgeHeight;
+    const barHeight = 0.18 * badgeHeight, barGap = 0.2 * badgeHeight;
+    ctx.fillStyle = "#232326";
+    ctx.beginPath();
+    ctx.roundRect(bx, badgeY, badgeWidth, badgeHeight, badgeHeight / 2);
+    ctx.fill();
+    ctx.font = `700 ${0.56 * badgeHeight}px system-ui, sans-serif`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    const text = String(state.remaining[player]), measure = ctx.measureText(text);
+    const start = bx + (badgeWidth - barWidth - barGap - measure.width) / 2;
+    ctx.fillStyle = colors[player];
+    ctx.beginPath();
+    ctx.roundRect(start, badgeY + (badgeHeight - barHeight) / 2, barWidth, barHeight, barHeight / 2);
+    ctx.fill();
+    ctx.fillStyle = "#F4F4F5";
+    ctx.fillText(text, start + barWidth + barGap,
+      badgeY + badgeHeight / 2 + (measure.actualBoundingBoxAscent - measure.actualBoundingBoxDescent) / 2);
+  }
+  ctx.fillStyle = "#E4E4E7";
   ctx.beginPath();
-  ctx.roundRect(x, y, size, size, 24);
+  ctx.roundRect(x, y, size, size, 0.053 * size);
   ctx.fill();
   ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(x, y, size, size, 0.053 * size);
+  ctx.clip();
+  ctx.translate(x, y);
   if (flipped) {
-    ctx.translate(WIDTH, 2 * y + size);
+    ctx.translate(size / 2, size / 2);
     ctx.rotate(Math.PI);
+    ctx.translate(-size / 2, -size / 2);
   }
-  const at = (r, c) => [x + pad + c * step, y + pad + r * step];
-  for (let r = 0; r < 9; r++)
-    for (let c = 0; c < 9; c++) {
-      const [px, py] = at(r, c);
-      ctx.fillStyle = r === 0 ? "#feeaea" : r === 8 ? "#e5f0ff" : "#f9fafb";
+  const at = (r, c) => [pad + c * (cell + gap), pad + r * (cell + gap)];
+  const winner = state.winner && progress >= 1 ? state.pawns[state.winner - 1] : null;
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+    const [px, py] = at(r, c);
+    const winning = winner && winner[0] === r && winner[1] === c;
+    ctx.fillStyle = winning ? "#FFFFFF" : r === 0 ? "#FBECEC" : r === 8 ? "#ECEFFB" : "#FAFAFA";
+    ctx.beginPath();
+    ctx.roundRect(px, py, cell, cell, 4);
+    ctx.fill();
+    if (winning) {
+      ctx.strokeStyle = "#F59E0B";
+      ctx.lineWidth = Math.max(2, 0.05 * cell);
+      const inset = ctx.lineWidth / 2;
       ctx.beginPath();
-      ctx.roundRect(px, py, cell, cell, cell * 0.16);
-      ctx.fill();
+      ctx.roundRect(px + inset, py + inset, cell - 2 * inset, cell - 2 * inset, 4);
+      ctx.stroke();
     }
+  }
+  const wallOwners = new Map();
+  state.history.forEach((move, i) => {
+    if (move.length === 3) wallOwners.set(move, i % 2);
+  });
   for (const [kind, r, c] of state.walls) {
     const [px, py] = at(r, c);
-    ctx.fillStyle = "#27272a";
+    const key = `${kind}${String.fromCharCode(97 + c)}${8 - r}`;
+    ctx.fillStyle = colors[wallOwners.get(key) ?? 0];
     ctx.beginPath();
-    if (kind === "h") ctx.roundRect(px, py + cell, cell * 2.25, cell * 0.25, 3);
-    else ctx.roundRect(px + cell, py, cell * 0.25, cell * 2.25, 3);
+    if (kind === "h") ctx.roundRect(px, py + cell, 2 * cell + gap, gap, 3);
+    else ctx.roundRect(px + cell, py, gap, 2 * cell + gap, 3);
     ctx.fill();
   }
   for (let player = 0; player < 2; player++) {
-    const [r, c] = state.pawns[player],
-      [pr, pc] = previous?.pawns[player] || [r, c];
-    const [px, py] = at(pr + (r - pr) * progress, pc + (c - pc) * progress);
+    const [r, c] = state.pawns[player], [pr, pc] = previous?.pawns[player] || [r, c];
+    let row = pr + (r - pr) * progress, col = pc + (c - pc) * progress;
+    // A diagonal jump passes through the opponent's square in the source.
+    if (previous && Math.abs(r - pr) === 1 && Math.abs(c - pc) === 1) {
+      const [or, oc] = previous.pawns[1 - player];
+      if (progress < 0.5) {
+        row = pr + (or - pr) * progress * 2;
+        col = pc + (oc - pc) * progress * 2;
+      } else {
+        row = or + (r - or) * (progress * 2 - 1);
+        col = oc + (c - oc) * (progress * 2 - 1);
+      }
+    }
+    const [px, py] = at(row, col);
     ctx.fillStyle = colors[player];
     ctx.beginPath();
     ctx.arc(px + cell / 2, py + cell / 2, cell * 0.275, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
-  ctx.font = "bold 24px system-ui, sans-serif";
-  ctx.textAlign = "left";
-  for (let i = 0; i < 2; i++) {
-    const bx = WIDTH * (i === 0 ? 0.27 : 0.57);
-    ctx.fillStyle = "#27272a";
-    ctx.beginPath();
-    ctx.roundRect(bx, 135, 88, 48, 24);
-    ctx.fill();
-    ctx.fillStyle = colors[i];
-    ctx.beginPath();
-    ctx.roundRect(bx + 14, 155, 25, 8, 4);
-    ctx.fill();
-    ctx.fillStyle = "#fafafa";
-    ctx.fillText(String(state.remaining[i]), bx + 48, 168);
-  }
 }
 
 export default function ClipDialog({
@@ -108,6 +146,7 @@ export default function ClipDialog({
   const previewAudio = useRef(null),
     previewMove = useRef(0),
     mounted = useRef(true);
+  const exportGeneration = useRef(0);
   const [playing, setPlaying] = useState(true),
     [progress, setProgress] = useState(0),
     [speed, setSpeed] = useState(2);
@@ -121,7 +160,8 @@ export default function ClipDialog({
     speedRef = useRef(2),
     flipRef = useRef(initialFlipped),
     soundRef = useRef(true);
-  const duration = Math.max(1, moves.length * 1000 + 1000);
+  // The end hold is 500 ms of real time at every playback speed.
+  const duration = Math.max(1, moves.length * 1000 + 500 * speed);
   closeRef.current = onClose;
   busyRef.current = busy;
   useEffect(() => {
@@ -199,12 +239,12 @@ export default function ClipDialog({
         return;
       const index = Math.max(
         0,
-        Math.min(states.current.length - 1, Math.floor(position / 1000)),
+        Math.min(states.current.length - 1, Math.floor(position / 1000) + 1),
       );
       const frac =
-        index === 0 || position >= moves.length * 1000 + 250
+        index <= 1 || position >= moves.length * 1000
           ? 1
-          : Math.min(1, (position % 1000) / 250);
+          : Math.min(1, (position % 1000) / (250 * speedRef.current));
       draw(
         canvas.current.getContext("2d"),
         states.current[index],
@@ -222,19 +262,22 @@ export default function ClipDialog({
       const delta = Math.min(100, now - last);
       last = now;
       if (playingRef.current && !recorder.current) {
+        const priorPosition = progressRef.current;
         progressRef.current =
           (progressRef.current + delta * speedRef.current) % duration;
-        setProgress((progressRef.current / duration) * 1000);
+        // A loop starts a new first move, so it needs a fresh sound event.
+        if (progressRef.current < priorPosition) previewMove.current = 0;
+        setProgress(Math.min(1000, (progressRef.current / Math.max(1, moves.length * 1000)) * 1000));
         const nextMove = Math.min(
           moves.length,
-          Math.floor(progressRef.current / 1000),
+          Math.floor(progressRef.current / 1000) + 1,
         );
         if (
           nextMove > previewMove.current &&
           soundRef.current &&
           previewAudio.current?.state === "running"
         ) {
-          beep(previewAudio.current, previewAudio.current.destination);
+          playSoundInto(previewAudio.current, previewAudio.current.destination, moves[nextMove - 1]?.length === 3).catch(() => {});
         }
         previewMove.current = nextMove;
       }
@@ -243,17 +286,26 @@ export default function ClipDialog({
     };
     raf.current = requestAnimationFrame(tick);
     return () => {
-      mounted.current = false;
       cancelAnimationFrame(raf.current);
+    };
+  }, [duration, paint]);
+  useEffect(() => {
+    // StrictMode may run setup again after a development-only cleanup.
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      exportGeneration.current++;
       recorder.current?.cancelExport?.();
       audio.current?.close().catch(() => {});
       previewAudio.current?.close().catch(() => {});
     };
-  }, [duration, paint]);
+  }, []);
   const seek = (e) => {
     const p = Number(e.target.value);
-    progressRef.current = (p / 1000) * duration;
-    previewMove.current = Math.floor(progressRef.current / 1000);
+    progressRef.current = (p / 1000) * moves.length * 1000;
+    previewMove.current = Math.min(moves.length, Math.floor(progressRef.current / 1000) + 1);
+    if (p < 1000 && moves.length && soundRef.current && previewAudio.current?.state === "running")
+      playSoundInto(previewAudio.current, previewAudio.current.destination, moves[Math.floor(progressRef.current / 1000)]?.length === 3).catch(() => {});
     setProgress(p);
     paint(progressRef.current);
   };
@@ -263,16 +315,7 @@ export default function ClipDialog({
       previewAudio.current = new AudioContext();
     if (previewAudio.current.state === "suspended")
       previewAudio.current.resume().catch(() => {});
-  };
-  const beep = (context, destination) => {
-    const oscillator = context.createOscillator(),
-      gain = context.createGain();
-    oscillator.frequency.value = 500;
-    gain.gain.setValueAtTime(0.06, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.08);
-    oscillator.connect(gain).connect(destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.08);
+    preloadGameSounds(previewAudio.current).catch(() => {});
   };
   const download = async () => {
     if (!canvas.current?.captureStream || !window.MediaRecorder) {
@@ -284,13 +327,25 @@ export default function ClipDialog({
     setRecordingProgress(0);
     setPlaying(false);
     playingRef.current = false;
-    const stream = canvas.current.captureStream(30);
-    let context, destination;
+    const generation = ++exportGeneration.current;
+    let context, destination, stream;
     try {
       if (soundRef.current && window.AudioContext) {
-        context = new AudioContext();
+        // Render the recording independently of an available speaker device.
+        // Browsers without silent-sink support ignore this optional setting.
+        context = new AudioContext({ sinkId: { type: "none" } });
         audio.current = context;
+        // Resume before the first await, while the download click is active.
+        const resumed = context.resume();
+        await Promise.all([resumed, preloadGameSounds(context)]);
+        if (!mounted.current || generation !== exportGeneration.current) {
+          await context.close().catch(() => {});
+          return;
+        }
         destination = context.createMediaStreamDestination();
+      }
+      stream = canvas.current.captureStream(30);
+      if (destination) {
         destination.stream
           .getAudioTracks()
           .forEach((track) => stream.addTrack(track));
@@ -327,7 +382,7 @@ export default function ClipDialog({
         cancelAnimationFrame(frame);
         stream.getTracks().forEach((track) => track.stop());
         context?.close().catch(() => {});
-        audio.current = null;
+        if (audio.current === context) audio.current = null;
         if (!cancelled && chunks.length) {
           const url = URL.createObjectURL(new Blob(chunks, { type: mime }));
           const a = document.createElement("a");
@@ -337,9 +392,13 @@ export default function ClipDialog({
             : "barricade-replay.webm";
           a.click();
           setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } else if (!cancelled && mounted.current) {
+          setError("没有录制到视频，请重试或更换浏览器。");
         }
-        recorder.current = null;
-        if (mounted.current) setBusy(false);
+        if (recorder.current === media) {
+          recorder.current = null;
+          if (mounted.current) setBusy(false);
+        }
       };
       media.cancelExport = () => {
         cancelled = true;
@@ -355,22 +414,26 @@ export default function ClipDialog({
         const t = Math.min(duration, (now - started) * speedRef.current);
         progressRef.current = t;
         paint(t);
-        setProgress((t / duration) * 1000);
+        setProgress(Math.min(1000, (t / Math.max(1, moves.length * 1000)) * 1000));
         setRecordingProgress((t / duration) * 100);
-        const index = Math.min(moves.length, Math.floor(t / 1000));
-        if (context && destination && index > lastSound.current)
-          beep(context, destination);
+        const index = Math.min(moves.length, Math.floor(t / 1000) + 1);
+        if (context && destination && index > 0 && index > lastSound.current)
+          playSoundInto(context, destination, moves[index - 1]?.length === 3).catch(() => {});
         lastSound.current = index;
         if (t >= duration) media.stop();
         else frame = requestAnimationFrame(render);
       };
       frame = requestAnimationFrame(render);
     } catch (e) {
-      stream.getTracks().forEach((track) => track.stop());
+      stream?.getTracks().forEach((track) => track.stop());
+      destination?.stream.getTracks().forEach((track) => track.stop());
       context?.close().catch(() => {});
-      recorder.current = null;
-      setBusy(false);
-      setError(e.message || "视频导出失败");
+      if (mounted.current && generation === exportGeneration.current) {
+        recorder.current = null;
+        if (audio.current === context) audio.current = null;
+        setBusy(false);
+        setError(e.message || "视频导出失败");
+      }
     }
   };
   return (
@@ -410,8 +473,7 @@ export default function ClipDialog({
             className="clip-preview"
             aria-label="视频预览"
           />
-          <div className="clip-controls">
-            <div className="clip-timeline">
+          <div className="clip-timeline">
               <button
                 className="icon-button"
                 disabled={busy}
@@ -436,7 +498,8 @@ export default function ClipDialog({
                 disabled={busy}
                 aria-label="视频进度"
               />
-            </div>
+          </div>
+          <div className="clip-controls">
             <div className="clip-row">
               <span>速度</span>
               <select
@@ -455,7 +518,7 @@ export default function ClipDialog({
             <div className="clip-row">
               <span>视角</span>
               <button disabled={busy} onClick={() => setFlipped(!flipped)}>
-                {flipped ? "玩家 2" : "玩家 1"}
+                {flipped ? "玩家2" : "玩家1"}
               </button>
             </div>
             <label className="clip-row">
@@ -478,30 +541,32 @@ export default function ClipDialog({
                 {error}
               </p>
             )}
+            {busy && <p className="clip-note">正在录制 {Math.round(recordingProgress)}%</p>}
+            {format === "WebM" && <p className="clip-note">此浏览器将以 WebM 格式保存视频。</p>}
+          </div>
+        </div>
+        <footer className="clip-footer">
             {busy ? (
-              <>
-                <p className="clip-note">
-                  正在录制 {Math.round(recordingProgress)}%
-                </p>
                 <button
                   className="clip-download"
-                  onClick={() => recorder.current?.cancelExport()}
+                  onClick={() => {
+                    exportGeneration.current++;
+                    if (recorder.current) recorder.current.cancelExport();
+                    else {
+                      audio.current?.close().catch(() => {});
+                      audio.current = null;
+                      setBusy(false);
+                    }
+                  }}
                 >
                   取消导出
                 </button>
-              </>
             ) : (
               <button className="clip-download" onClick={download}>
                 <ArrowDownTrayIcon className="clip-icon" /> 下载
               </button>
             )}
-            <p className="clip-note">
-              {format === "MP4"
-                ? "视频将以 MP4 格式保存。"
-                : "此浏览器将以 WebM 格式保存视频。"}
-            </p>
-          </div>
-        </div>
+        </footer>
       </section>
     </div>
   );

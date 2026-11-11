@@ -6,7 +6,7 @@
 
 ## 网页启动
 
-不修改程序时，可直接打开 [离线 HTML](frontend/offline/index.html)。传给组员请使用 [发布包](https://github.com/hy1195571214-byte/quoridor-barricade-lab/releases/tag/v0.1.0) 中的 ZIP，解压后双击 `offline/index.html`，无需安装开发环境。
+不修改程序时，可直接打开 [离线 HTML](frontend/offline/index.html)。传给组员请使用 [发布包](https://github.com/hy1195571214-byte/quoridor-barricade-lab/releases/latest) 中的 ZIP，解压后双击 `offline/index.html`，无需安装开发环境。
 
 ```bash
 cd frontend
@@ -109,7 +109,7 @@ training/
 
 ## 研究边界
 
-本仓库独立编写本地实现，并依据 [Barricade](https://barricade.gg) 的公开网页、浏览器可获取脚本和交互实测分析其行为；不是该网站的官方项目。第三方完整脚本、浏览器账号、设备标识、运行缓存及本机虚拟环境均未打包。
+本仓库独立编写本地实现，并依据 [Barricade](https://barricade.gg) 的公开网页、浏览器可获取脚本和交互实测分析其行为；不是该网站的官方项目。第三方完整脚本、浏览器账号、设备标识、运行缓存及本机虚拟环境均未打包。项目包含来自参考站的图标和走棋、放墙音效，具体来源见 [资源清单](docs/REPLICA_ASSET_MANIFEST.json)；其再分发许可尚未核实。
 
 专家适配器使用官网前端已使用的第三方服务，接口未来可能变化。访问拒绝或限流会停止采集并保留进度，不会切换身份或用本地策略冒充专家应手。内部专家权重和算法不可见；本项目通过应手样本做行为学习。
 

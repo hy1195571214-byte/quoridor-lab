@@ -1,5 +1,5 @@
 {
-  "audited_at": "2026-11-10",
+  "audited_at": "2026-11-12",
   "scope": "Public /local HTML and stylesheet references; source snapshot indexed in evidence/source-index.json",
   "assets_vendored": [
     {
@@ -9,6 +9,16 @@
     {
       "file": "frontend/public/source-assets/favicon-512x512.png",
       "source": "https://barricade.gg/favicon-512x512.png?v=2"
+    },
+    {
+      "file": "frontend/src/assets/move.mp3",
+      "source": "https://barricade.gg/sounds/move.mp3",
+      "sha256": "8390014c2c3e75bd9f53c6a80779ce4f36a72e3c7df7aab3fa881dea0010c7f4"
+    },
+    {
+      "file": "frontend/src/assets/wall.mp3",
+      "source": "https://barricade.gg/sounds/wall.mp3",
+      "sha256": "3b796881eba17da434cb3f056b2ea8433d7376551bf1bfcda25900ef8825c0f7"
     }
   ],
   "references": [
@@ -30,8 +40,8 @@
     {
       "url": "https://barricade.gg/favicon.svg?v=2",
       "purpose": "Site favicon",
-      "status": "referenced by page; not downloaded"
+      "status": "downloaded; vendored asset listed above"
     }
   ],
-  "notes": "No font URLs found in inspected CSS. Main interface uses CSS shapes and inline SVG; avoid vendoring complete third-party stylesheets or bundles. Source URLs are versioned deployment references and may expire."
+  "notes": "No font URLs found in inspected CSS. Main interface uses CSS shapes and inline SVG; avoid vendoring complete third-party stylesheets or bundles. Source URLs are versioned deployment references and may expire. Redistribution permission for reference-site icons and sounds has not been verified."
 }

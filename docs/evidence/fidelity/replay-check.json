@@ -1,0 +1,19 @@
+{
+  "branch": "(\n1.\ne2\ne8\n)",
+  "clipModal": {
+    "x": 528,
+    "y": 19.5,
+    "width": 384,
+    "height": 677
+  },
+  "clipCanvas": {
+    "x": 603,
+    "y": 81.5,
+    "width": 234,
+    "height": 416
+  },
+  "video": "barricade-replay.mp4",
+  "mobileMenu": "拖放路障\n切换到浅色棋盘\n本地对局记录\n分享回放\n旋转棋盘\n载入棋谱\n保存棋谱",
+  "space_while_select_focused_advanced": false,
+  "playback_ended_with_board_focused": true
+}

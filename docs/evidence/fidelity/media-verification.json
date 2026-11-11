@@ -1,0 +1,68 @@
+{
+  "v011-replay-audio.mp4": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 720,
+        "height": 1280
+      },
+      {
+        "codec_name": "aac",
+        "codec_type": "audio"
+      }
+    ],
+    "format": {
+      "duration": "6.178700",
+      "size": "225924"
+    },
+    "sha256": "551772ec5374801d1c6365431e6b98a68c9e9182e0ec0469ca5b141517c78e92",
+    "strict_decode_exit_code": 0
+  },
+  "v011-retry-audio.mp4": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 720,
+        "height": 1280
+      },
+      {
+        "codec_name": "aac",
+        "codec_type": "audio"
+      }
+    ],
+    "format": {
+      "duration": "6.178033",
+      "size": "226267"
+    },
+    "sha256": "251f5a996eea573347b3c8e687ea3c23611e25104b086f7f2373a761c9a53068",
+    "strict_decode_exit_code": 0
+  },
+  "v011-offline.mp4": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "codec_type": "video",
+        "width": 720,
+        "height": 1280
+      },
+      {
+        "codec_name": "aac",
+        "codec_type": "audio"
+      }
+    ],
+    "format": {
+      "duration": "6.180500",
+      "size": "226151"
+    },
+    "sha256": "45d37ccae0515207b29a9488117d361ea7d1b42ee7411f7d5456e5d81a657323",
+    "strict_decode_exit_code": 0
+  }
+}
