@@ -14,12 +14,12 @@
 | AI 预留 | 从文件页面请求本机后端，`/state` 返回 8×9×9 观察和 209 位掩码；未配置 DL 返回 503 | 接口验证通过；DL/RL/搜索模型不视为已训练或已接入 |
 | 后端记录 | 文件页面完成 `/records` 创建、读取、删除；自动测试验证重建应用后 SQLite 记录仍在 | 上述验证通过；浏览器自动记录与后端库不会自动同步 |
 | 自动化检查 | 本轮 17 项 Python、3 项前端、4 项 Sites 检查通过；npm audit 报告 0 漏洞 | 本轮运行结果，不代表未来依赖状态 |
-| 完整 ZIP 与组员可用性 | 打包脚本已提供，默认输出仓库外 releases 目录 | 测试包已通过逐文件 SHA-256、CRC、文件排除检查和断网运行；发布包最后复核 |
-| GitHub | 本地代码与文档已经准备 | 待核实目标仓库、提交及远端；本地文件不等于已上传 |
+| 完整 ZIP 与组员可用性 | 打包脚本已提供，默认输出仓库外 releases 目录 | 通过：发布包 101 个文件，全部 SHA-256、CRC 与私密缓存排除检查通过；HTML 与断网实测构建逐字节一致 |
+| GitHub | 源码与文档已推送到原私有仓库 main，远端提交已核对 | 已上传；发布 ZIP 使用 v0.1.0，线上检查以 Actions 对应运行结果为准 |
 | 使用说明 | [组员使用与开发指南](DELIVERY_GUIDE.md) | 已按 ZIP 的 offline、frontend、training、docs、scripts 结构复核 |
 
 本次检查截图已保存在 `docs/evidence/replica-desktop.png`、`replica-mobile.png`、`replica-replay.png` 和 `replica-clip.png`，实测棋谱为 `docs/evidence/replica-local-game.json`，测试摘要见 `docs/evidence/replica-verification.json`。参考站的早期观察与来源见 [公开源码核对](REPLICA_SOURCE_AUDIT.md) 和 [现场观察](REPLICA_LIVE_AUDIT.md)。
 
 ## 剩余交付检查
 
-独立目录解压及浏览器禁网测试已经通过，逐文件哈希和敏感缓存排除通过；发布包和 GitHub 对应提交在发布时最后核实。实体 iOS/Safari 与本轮原站截图对照仍属于未覆盖范围。
+独立目录解压及浏览器禁网测试、逐文件哈希和敏感缓存排除已通过。源码已上传至私有仓库，发布包分发位置为 [v0.1.0](https://github.com/hy1195571214-byte/quoridor-barricade-lab/releases/tag/v0.1.0)。实体 iOS/Safari 与本轮原站截图对照仍属于未覆盖范围。
