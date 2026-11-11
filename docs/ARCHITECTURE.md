@@ -7,14 +7,14 @@
 | 层 | 参考站点可确认结构 | 本仓库当前实现 |
 |---|---|---|
 | 游戏状态 | React Context / GameProvider | 不可变 Python State |
-| 棋盘显示 | DOM + CSS Grid | 未实现网页前端 |
-| 悔棋 | 操作前状态与棋谱快照 | 训练 State 不提供网页悔棋 UI |
-| 棋谱重放 | replayMoves 从开局重建 | State.from_moves，逐步严格验证 |
+| 棋盘显示 | DOM + CSS Grid | React / 19-track CSS Grid |
+| 悔棋 | 操作前状态与棋谱快照 | 网页按合法历史恢复前一局面 |
+| 棋谱重放 | replayMoves 从开局重建 | 浏览器 replay 与 Python State.from_moves 严格验证 |
 | 电脑应手 | Socket.IO /ai | RemoteExpert |
 | 批量训练数据 | 未验证站点内部实现 | collect.py，JSONL + 检查点 |
 | 强化学习接口 | 未知 | BarricadeEnv |
 | HTTP | 第三方 API | FastAPI，仅本机监听 |
-| 视频 | Canvas / MediaRecorder / WASM 与服务端路径 | 规范阶段 |
+| 视频 | Canvas / MediaRecorder / WASM 与服务端路径 | Canvas / MediaRecorder，优先原生 MP4，回退 WebM |
 
 ## 推荐的完整复刻结构
 
@@ -121,7 +121,7 @@ Ack:       { ok: true, correlationId: <请求ID>, move: "..." }
 
 本地非法输入通常返回 400；未知会话 404；明确上游限流 429；其他上游错误 502。上游失败可能发生在学习方动作已经应用之后，应检查当前状态再重置，不能重复提交同一动作。
 
-HTTP 会话只存在于内存，服务重启后清空。长期保存由采集器负责。
+HTTP 游戏会话只存在于内存，服务重启后清空。采集器保存训练记录，独立 `/records` 接口则保存 SQLite 棋谱档案。
 
 ## 数据记录
 
@@ -138,9 +138,9 @@ HTTP 会话只存在于内存，服务重启后清空。长期保存由采集器
 
 已发布样例去除了请求 / 会话标识；本地新采集数据保留原始响应以便检查。小样本用于复现实验链路，不作为已达到强度的证据。
 
-## 网页复刻的建议保存格式
+## 网页棋谱保存格式
 
-网页完整产品建议在当前训练记录之上保存独立的规则版本、初始配置、参与者、模型版本和分支树：
+网页使用独立的规则版本、初始配置、主线、结果与单层变化集合：
 
 ```json
 {
@@ -153,7 +153,7 @@ HTTP 会话只存在于内存，服务重启后清空。长期保存由采集器
 }
 ```
 
-这是 **PLANNED** 格式，不是当前 `/games` 接口已经提供的网页档案。认输元数据必须独立保存；不能仅从最后棋盘推断。
+这是当前 JSON 导入导出、浏览器记录库和 `/records` 接口使用的格式。变化为 `{ "anchor": 0, "moves": ["f9", "e3"] }`；锚点为主线动作索引，-1 表示开局。`/games` 仍是训练会话。认输元数据独立保存，不从最后棋盘推断。
 
 ## 模块文件
 
@@ -166,3 +166,15 @@ HTTP 会话只存在于内存，服务重启后清空。长期保存由采集器
 - `training/examples/`：训练示例。
 
 后续网页应通过这一稳定边界接入，避免把联网请求、规则、回放游标和 UI 偏好混在同一个组件中。
+
+
+## 2026-11-10 网页模块
+
+- `frontend/src/components/Board.jsx` 使用与来源相同的 19×19 网格，点击与拖放统一调用行动校验。
+- `frontend/src/App.jsx` 区分真实对局、回放游标、变化和展示偏好。旋转保持绝对坐标。历史浏览与变化保留主线。
+- `frontend/src/game/rules.js` 与 Python 对照全部行动、掩码、距离和观察。
+- `frontend/src/game/record.js` 实现上文保存格式，兼容原站 `moves` 与 `var` URL。额外结果参数用于保留认输元数据。
+- `frontend/src/game/agents.js` 提供注册、HTTP 与 Worker 接口。每局独立请求版本，取消 / 重开后丢弃过期应手，策略输入使用副本。
+- `frontend/src/components/ClipDialog.jsx` 从统一棋谱生成预览和本地录制。
+
+当前沿用原站本地刷新开新局，同时增加独立的自动记录库。变化首步允许后退到分叉点。模型未配置会返回明确不可用状态，网页保持当前局面供重试。离线包及最终验收见 [交付验收](DELIVERY_AUDIT.md)。

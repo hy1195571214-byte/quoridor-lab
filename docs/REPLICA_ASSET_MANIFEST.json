@@ -1,0 +1,37 @@
+{
+  "audited_at": "2026-11-10",
+  "scope": "Public /local HTML and stylesheet references; source snapshot indexed in evidence/source-index.json",
+  "assets_vendored": [
+    {
+      "file": "frontend/public/source-assets/favicon.svg",
+      "source": "https://barricade.gg/favicon.svg?v=2"
+    },
+    {
+      "file": "frontend/public/source-assets/favicon-512x512.png",
+      "source": "https://barricade.gg/favicon-512x512.png?v=2"
+    }
+  ],
+  "references": [
+    {
+      "url": "https://barricade.gg/local",
+      "purpose": "Public page HTML and asset references",
+      "status": "read"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/dbdafe9c0d8ece8a.css?dpl=dpl_VUmLxr6CZNBRfdaGqYDPBPzQ9UGi",
+      "purpose": "Published layout and utility styles",
+      "status": "read for audit; not vendored"
+    },
+    {
+      "url": "https://barricade.gg/_next/static/chunks/4bd2c4cf0a9a6854.css?dpl=dpl_VUmLxr6CZNBRfdaGqYDPBPzQ9UGi",
+      "purpose": "Additional published stylesheet",
+      "status": "read for audit; not vendored"
+    },
+    {
+      "url": "https://barricade.gg/favicon.svg?v=2",
+      "purpose": "Site favicon",
+      "status": "referenced by page; not downloaded"
+    }
+  ],
+  "notes": "No font URLs found in inspected CSS. Main interface uses CSS shapes and inline SVG; avoid vendoring complete third-party stylesheets or bundles. Source URLs are versioned deployment references and may expire."
+}

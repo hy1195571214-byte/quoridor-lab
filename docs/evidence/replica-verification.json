@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-11",
+  "implementation": "independent local replica",
+  "browser": "isolated Chrome",
+  "desktop": [
+    1440,
+    824
+  ],
+  "mobile_emulation": [
+    390,
+    844
+  ],
+  "offline_full_game": {
+    "plies": 17,
+    "winner": 1,
+    "reason": "goal",
+    "record": "replica-local-game.json"
+  },
+  "python_tests": 17,
+  "frontend_test_entries": 3,
+  "sites_tests": 4,
+  "touch_wall": {
+    "input": "CDP touch events",
+    "hold_ms": 300,
+    "move": "ha8",
+    "accepted": true
+  },
+  "pawn_center_error_px": {
+    "desktop": [
+      0,
+      0
+    ],
+    "mobile": [
+      0.0078125,
+      -0.0078125
+    ]
+  },
+  "video": {
+    "format": "MP4",
+    "video_codec": "h264",
+    "audio_codec": "aac",
+    "size": [
+      540,
+      960
+    ],
+    "duration_seconds": 1.3431,
+    "strict_decode": "passed",
+    "cancel_then_retry": "passed"
+  },
+  "file_origin_api": {
+    "observation": [
+      8,
+      9,
+      9
+    ],
+    "mask": 209,
+    "unconfigured_dl_status": 503,
+    "record_crud": "passed",
+    "custom_agent_ui": "e2,e8,e3 using explicitly labelled shortest placeholder"
+  },
+  "reference_recheck": {
+    "url": "https://barricade.gg/local",
+    "status": 403,
+    "pixel_perfect_comparison": "not verified"
+  },
+  "limits": [
+    "Physical iOS and Safari not tested",
+    "Browser and SQLite records are independent",
+    "DL/RL/search weights not included"
+  ],
+  "portable_zip": {
+    "all_sha256": "passed",
+    "crc": "passed",
+    "excluded_private_caches": "passed",
+    "extracted_offline_game_plies": 15,
+    "offline_replay_keyboard_and_variation": "passed",
+    "http_requests": []
+  },
+  "resign_new_game_record_delete": "passed"
+}

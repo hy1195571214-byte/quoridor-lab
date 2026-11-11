@@ -6,11 +6,13 @@ import uuid
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .rules import Action, State
 from .env import BarricadeEnv
 from .opponents import RemoteExpert, LocalPolicy, RemoteError
+from .records import RecordStore
 
 
 class Query(BaseModel):
@@ -35,10 +37,16 @@ class Session:
     lock: threading.RLock = field(default_factory=threading.RLock)
 
 
-def create_app(remote=None):
+def create_app(remote=None, agents=None, record_dir=None):
     remote = remote or RemoteExpert()
     sessions = {}
     sessions_lock = threading.RLock()
+    # Additional local policies can be injected as {id: policy}, each exposing
+    # choose(State) -> Decision. Model slots are deliberately unavailable by default.
+    custom_ids = set(agents or {})
+    policies = {"shortest": LocalPolicy("shortest"), "random": LocalPolicy("random")}
+    policies.update(agents or {})
+    policy_lock = threading.RLock()
 
     @asynccontextmanager
     async def lifespan(app):
@@ -46,6 +54,46 @@ def create_app(remote=None):
         remote.close()
 
     app = FastAPI(title="Barricade Local Training API", version="0.1.0", lifespan=lifespan)
+    # Offline file:// pages have the Origin "null"; loopback web dev servers
+    # may run on any port. The server CLI binds only to 127.0.0.1.
+    app.add_middleware(CORSMiddleware, allow_origins=["null"],
+                       allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+                       allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
+    records = RecordStore(record_dir or remote.data_dir)
+
+    @app.get("/records")
+    def list_records():
+        return {"records": records.list()}
+
+    @app.get("/records/{record_id}")
+    def get_record(record_id: str):
+        item = records.get(record_id)
+        if item is None:
+            raise HTTPException(404, "Unknown record")
+        return item
+
+    def save_record(record, record_id=None):
+        try:
+            item = records.put(record, record_id)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(400, str(exc)) from exc
+        if item is None:
+            raise HTTPException(404, "Unknown record")
+        return item
+
+    @app.post("/records", status_code=201)
+    def create_record(record: dict):
+        return save_record(record)
+
+    @app.put("/records/{record_id}")
+    def update_record(record_id: str, record: dict):
+        return save_record(record, record_id)
+
+    @app.delete("/records/{record_id}")
+    def delete_record(record_id: str):
+        if not records.delete(record_id):
+            raise HTTPException(404, "Unknown record")
+        return {"deleted": record_id}
 
     @app.exception_handler(RemoteError)
     async def remote_error(request, error):
@@ -91,7 +139,38 @@ def create_app(remote=None):
             current = State.from_moves(query.moves)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
-        return {"state": current.to_dict(), "action_mask": current.action_mask().tolist()}
+        obs = current.observation()
+        return {"state": current.to_dict(), "action_mask": obs["action_mask"].tolist(),
+                "observation": obs["board"].tolist()}
+
+    @app.get("/agents")
+    def list_agents():
+        ids = list(dict.fromkeys(["shortest", "random", "dl", "rl", "search", *policies]))
+        return {"agents": [{"id": name, "available": name in policies,
+                            "kind": "baseline" if name in {"shortest", "random"} and name not in custom_ids else "custom"}
+                           for name in ids]}
+
+    @app.post("/agents/{agent_id}/move")
+    def agent_move(agent_id: str, query: Query):
+        if agent_id not in policies:
+            raise HTTPException(503 if agent_id in {"dl", "rl", "search"} else 404,
+                                "Agent is not configured")
+        try:
+            current = State.from_moves(query.moves)
+            if current.winner is not None:
+                raise ValueError("Game already finished")
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        with policy_lock:
+            decision = policies[agent_id].choose(current)
+        action = getattr(decision, "action", None)
+        if not isinstance(action, Action) or current.error(action) or not callable(getattr(decision, "to_dict", None)):
+            raise HTTPException(502, "Agent returned an invalid or illegal action")
+        result = decision.to_dict()
+        if not isinstance(result, dict):
+            raise HTTPException(502, "Agent returned an invalid decision")
+        # The validated Action is authoritative, even for custom policies.
+        return {**result, "action_id": action.id, "notation": action.notation}
 
     @app.post("/games")
     def new_game(config: NewGame):

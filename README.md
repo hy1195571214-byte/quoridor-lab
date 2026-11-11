@@ -1,10 +1,40 @@
 # Quoridor / Barricade Lab
 
-步步为营（Quoridor）项目的参考站点拆解、复刻规范，以及可连接 Barricade 官网专家的本地训练接口。
+步步为营（Quoridor）项目的本地对战与回放网页、站点拆解，以及深度学习、强化学习与搜索策略接口。
 
-当前可运行的部分是 **Python 规则引擎、官网专家适配器、批量数据采集、Gymnasium 环境、HTTP API 和 PyTorch 训练示例**。网页前端复刻处于规范阶段，尚未实现。
+当前可运行 **React 网页、浏览器 / Python 规则、策略接口和 Gymnasium 环境**。网页包含本地双人、基线人机、回放、变化、原站压缩链接、完整 JSON 棋谱和浏览器视频导出。此前训练示例保留，当前开发阶段聚焦平台与接口。使用及交付状态请看 [组员使用指南](docs/DELIVERY_GUIDE.md) 和 [交付验收矩阵](docs/DELIVERY_AUDIT.md)。
+
+## 网页启动
+
+不修改程序时，可直接打开 [离线 HTML](frontend/offline/index.html)。传给组员请使用 [发布包](https://github.com/hy1195571214-byte/quoridor-barricade-lab/releases/tag/v0.1.0) 中的 ZIP，解压后双击 `offline/index.html`，无需安装开发环境。
+
+```bash
+cd frontend
+npm ci
+npm run dev -- --port 4173 --strictPort
+```
+
+打开 [本地双人](http://127.0.0.1:4173/local)、[电脑](http://127.0.0.1:4173/computer) 或 [回放](http://127.0.0.1:4173/analysis?moves=KYJgNMAcYBbALEA)。网页规则和最短路 / 随机基线直接在浏览器运行。开发服务将 `/api` 转发到 `127.0.0.1:8765`，供模型服务使用。
+
+- `npm run build` 生成网页构建及 `frontend/offline/index.html` 单文件；`npm run build:sites` 额外准备站点构建。
+- `npm test` 检查棋谱、链接、策略与过期响应。
+- 本地对局在浏览器内自动记录，可在记录库恢复；刷新会开启新局。通过“保存棋谱”可导出含终局原因和变化的 JSON。浏览器记录与后端 SQLite 记录库独立，不会自动同步。
+- 回放支持左右键单步、上键开局、下键末步、Space / End 播放，0.5× / 1× / 2× / 3× / 5×，旋转与试走变化。
+- 视频优先使用浏览器原生 MP4，编码不可用时使用 WebM，弹窗标明格式。导出前 100 个动作，支持声音、速度、视角和录制取消。
+- 当前可运行的对手是简单基线，DL / RL / 搜索槽需要接入自己的策略；不将难度标签当成已训练模型。详见 [AI 接口](docs/AI_INTERFACE.md)。
+- 账号、真人匹配、排行榜、观战、谜题和 Premium 的远程平台服务仍需独立接入。
+
+## 最新补充
+
+- [公开源码、尺寸、配色与拖放细节](docs/REPLICA_SOURCE_AUDIT.md)
+- [桌面与 390×844 手机现场观察](docs/REPLICA_LIVE_AUDIT.md)
+- [资源来源清单](docs/REPLICA_ASSET_MANIFEST.json)
+- [浏览器、Worker 与 Python 策略接入](docs/AI_INTERFACE.md)
 
 ## 文档入口
+
+- [组员使用、传输与开发指南](docs/DELIVERY_GUIDE.md)
+- [本次交付验收矩阵](docs/DELIVERY_AUDIT.md)
 
 - [网站定位、入口与功能地图](docs/WEBSITE_BREAKDOWN.md)
 - [本地对战、回放、变化分支和导出的交互规范](docs/INTERACTION_SPEC.md)
@@ -51,9 +81,9 @@ finally:
     expert.close()
 ```
 
-## 已完成的验证
+## 历史验证记录
 
-截至 2026-11-05：
+以下是截至 2026-11-05 的历史结果，并非当前交付包的最终验收：
 
 - 11 项离线检查通过，覆盖规则边界、动作编码、环境、缓存、限流错误、HTTP 与中断续采。
 - 通过网页真实完成一盘专家对战：红方先手，23 回合 / 46 个动作后专家蓝方到达 i1 获胜；全部动作已独立验证合法。
@@ -66,6 +96,7 @@ finally:
 ## 项目结构
 
 ```text
+frontend/                     React 棋盘、对战、回放、分享、视频、策略适配
 docs/                         拆解、规范、架构、训练流程与验收
   evidence/                   来源清单、UI / 源码观察和实战记录
 training/

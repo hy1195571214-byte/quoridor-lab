@@ -1,0 +1,61 @@
+# 组员使用与开发指南
+
+这份指南面向收到项目压缩包的组员。项目提供本地双人棋盘、棋谱回放和以后接入 AI 的接口。它是独立实现，不是 Barricade 官方项目；账号、网络匹配等远程平台功能不在本次本地交付范围内。最终交付状态以 [交付验收矩阵](DELIVERY_AUDIT.md) 为准。
+
+## 只想下棋：离线版
+
+解压完整的交付包，双击 `offline/index.html`，在浏览器中打开。从首页进入本地双人，双方轮流移动棋子或放墙。将棋子走到对面底线即可获胜；墙不能封死任何一方的所有通路。无需安装 Node.js 或 Python。离线版的具体浏览器兼容性和文件直接打开行为以交付验收记录为准。
+
+需要保留棋局时使用界面里的“保存棋谱”，将 JSON 文件保存到自己能找到的文件夹；以后通过“载入棋谱”选择该文件，也可以粘贴记谱或受支持的回放链接。回放中可逐步浏览、播放和尝试变化。有行动后，对局会自动保存在当前浏览器的“本地对局记录”中，可在那里恢复、回放或删除；刷新会开启新棋局。浏览器的主题、声音等偏好也保存在该浏览器中。自动记录不是可迁移的备份，重要棋局请额外导出 JSON。
+
+离线文件在每台电脑的路径可能不同，本地文件链接不适合直接作为组员之间的共享地址；交换 JSON 棋谱更可靠。视频录制依赖浏览器支持，格式和是否可用由浏览器决定。
+
+## 发给组员
+
+1. 把完整交付 ZIP 发给组员，解压后保持内部文件夹结构；只下棋可打开 `offline/index.html`。
+2. 棋谱另外以 JSON 文件传递；若涉及训练数据，确认数据内容和分享范围后再传递。
+3. 要修改网页，使用 `frontend/` 源码；要开发 Python 规则、数据采集和模型，使用 `training/`。不要把个人虚拟环境、`node_modules`、设备标识、缓存或密钥当作项目必需文件发送。
+4. 双击离线版和启动开发服务是两种使用方式；修改源码后需重新构建离线文件，旧 HTML 不会自动更新。
+
+## 修改网页
+
+安装 Node.js 后，在项目目录的终端中运行：
+
+```sh
+cd frontend
+npm ci
+npm run dev -- --port 4173 --strictPort
+```
+
+打开终端给出的本机地址。`npm test` 运行网页单元检查；`npm run build` 同时构建网页与 `frontend/offline/index.html`。如需站点构建，另运行 `npm run build:sites`。网络安装依赖只在首次准备开发环境时需要，下棋本身不要求安装这些依赖。
+
+## 本机服务与打包
+
+ZIP 已包含构建后的网页；从 GitHub 克隆源码则先运行 `npm ci` 和 `npm run build`。在项目根目录执行 `python3 scripts/serve_local.py`，可通过 `http://127.0.0.1:8000` 使用网页；该服务把 `/api` 转发到本机 8765 端口的 Python 后端，后端需要另外启动。使用 `python3 scripts/package_release.py` 创建交付压缩包，默认位于仓库外 `releases/Barricade-Local-Lab.zip`；加 `--build` 可在打包前重建。Windows 可使用 `python` 代替 `python3`，虚拟环境解释器路径为 `.venv\Scripts\python.exe`。验收范围见 [交付验收矩阵](DELIVERY_AUDIT.md)。
+
+## Python 后端和训练
+
+在项目目录执行：
+
+```sh
+cd training
+python3.11 -m venv .venv
+.venv/bin/python -m pip install '.[test]'
+.venv/bin/python -m unittest discover -s tests -v
+.venv/bin/python -m barricade_lab serve --port 8765
+```
+
+服务默认仅监听本机，打开 `http://127.0.0.1:8765/docs` 查看接口。开发网页的 `/api` 请求由 Vite 转发到该服务。离线 HTML 的使用不等同于自动启动 Python 服务；要接真实模型，仍需按接口文档配置并运行对应服务。
+
+网页策略接口、状态与合法动作掩码、Python 接口以及模型占位的具体契约见 [AI 接口](AI_INTERFACE.md)。随机和最短路策略只是简单基线，不是已训练模型；DL、RL、搜索模型需要组员自行实现与接入，不能将占位接口当作已有模型或固定难度。训练示例和数据字段见 [训练指南](TRAINING_GUIDE.md) 与 [training/README.md](../training/README.md)。
+
+## 数据在哪里
+
+- 手动保存的网页棋谱：浏览器下载时由你选择的位置，通常是“下载”文件夹；请自行备份或分享。
+- 网页自动记录与偏好：当前浏览器的本地存储，不保证换浏览器或换电脑后保留；与后端记录库互相独立，不会自动同步。
+- `training/data/live-smoke/`：已有的小样本对局与逐步样本，仅用于说明采集链路，不能证明模型强度。
+- 新的采集数据：由采集命令的 `--output` 指定；默认 `training/data/collection/`（从 `training/` 运行时）。棋局摘要、逐步记录和中断检查点的用途见训练说明。
+- 后端记录库：服务数据目录下 `records.sqlite3`；从 `training/` 按上述命令启动且不改变 `--data-dir` 时为 `training/data/records.sqlite3`。`/records` 提供查询、新增、更新和删除接口；只有明确调用这些接口的数据才会进入该库，网页自动记录不会自动写入。
+- Python HTTP 游戏会话保存在服务内存中，服务重启会清空；它与 SQLite 记录库也是两回事。长期保留请使用明确的棋谱导出或记录接口。
+
+本项目的官网专家适配器属于可选联网功能，服务可能变更或限流；启动本地网页和本地服务不代表已调用官网，也不需要调用官网才能进行本地双人对战。

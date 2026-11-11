@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "rules_version": "classic-9x9-v1",
+  "initial": {
+    "pawns": [
+      "e1",
+      "e9"
+    ],
+    "walls": [
+      10,
+      10
+    ],
+    "turn": 1
+  },
+  "moves": [
+    "ha8",
+    "hh1",
+    "e2",
+    "d9",
+    "e3",
+    "d8",
+    "e4",
+    "d7",
+    "e5",
+    "d6",
+    "e6",
+    "d5",
+    "e7",
+    "d4",
+    "e8",
+    "d3",
+    "e9"
+  ],
+  "result": {
+    "winner": 1,
+    "reason": "goal"
+  },
+  "variations": []
+}
