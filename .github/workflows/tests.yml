@@ -47,7 +47,5 @@ jobs:
         with:
           python-version: '3.11'
       - run: python scripts/package_release.py --output releases/Barricade-Local-Lab.zip
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Barricade-Local-Lab
-          path: releases/Barricade-Local-Lab.zip
+      # Distribution ZIPs are attached to GitHub Releases. Keep CI focused on
+      # tests/build/package validation, without consuming Actions artifact quota.
