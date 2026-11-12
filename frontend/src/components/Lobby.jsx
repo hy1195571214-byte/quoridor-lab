@@ -1,3 +1,4 @@
+import { useLanguage, LanguageSelector } from "../i18n.jsx";
 import React from "react";
 import {
   ArrowRightIcon,
@@ -23,6 +24,7 @@ const entryCards = [
 ];
 
 export default function Lobby({ navigate }) {
+  const { t } = useLanguage();
   return (
     <main className="lobby-page">
       <div className="lobby-content">
@@ -30,13 +32,18 @@ export default function Lobby({ navigate }) {
           <div className="lobby-hero-head">
             <div>
               <h1>
-                玩 <span>Barricade</span>
+                {t("玩")} <span>Barricade Lab</span>
               </h1>
-              <p>抢在对手之前穿过棋盘，用路障挡住他们的路 — 但别把自己困住。</p>
+              <p>
+                {t(
+                  "抢在对手之前穿过棋盘，用路障挡住他们的路 — 但别把自己困住。",
+                )}
+              </p>
             </div>
             <div className="lobby-hero-aside">
+              <LanguageSelector className="lobby-language" />
               <button onClick={() => navigate("/rules")}>
-                新手？60 秒学会 <ArrowRightIcon className="lobby-icon" />
+                {t("新手？60 秒学会")} <ArrowRightIcon className="lobby-icon" />
               </button>
             </div>
           </div>
@@ -46,22 +53,19 @@ export default function Lobby({ navigate }) {
           >
             <PlayIcon className="lobby-icon" />
             <span>
-              <strong>立即开玩</strong>
+              <strong>{t("立即开玩")}</strong>
             </span>
           </button>
           <div className="lobby-divider" />
           <div className="lobby-entries">
             {entryCards.map(({ title, description, icon: Icon, path }) => (
-              <button
-                key={title}
-                onClick={() => navigate(path)}
-              >
+              <button key={title} onClick={() => navigate(path)}>
                 <span className="lobby-entry-icon">
                   <Icon className="lobby-icon" />
                 </span>
                 <span>
-                  <strong>{title}</strong>
-                  <small>{description}</small>
+                  <strong>{t(title)}</strong>
+                  <small>{t(description)}</small>
                 </span>
                 <ArrowRightIcon className="lobby-arrow" />
               </button>

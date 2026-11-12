@@ -1,3 +1,5 @@
+import { message } from "./translations.js";
+import { useLanguage, LanguageSelector } from "./i18n.jsx";
 import React, {
   useCallback,
   useEffect,
@@ -21,7 +23,6 @@ import {
   EllipsisHorizontalIcon,
   FlagIcon,
   HomeIcon,
-  GlobeAltIcon,
   LinkIcon,
   PauseIcon,
   PlayIcon,
@@ -31,7 +32,12 @@ import {
   XMarkIcon,
   Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
-import { BackwardIcon, ForwardIcon, PlayIcon as PlaySolidIcon, PauseIcon as PauseSolidIcon } from "@heroicons/react/24/solid";
+import {
+  BackwardIcon,
+  ForwardIcon,
+  PlayIcon as PlaySolidIcon,
+  PauseIcon as PauseSolidIcon,
+} from "@heroicons/react/24/solid";
 import Board from "./components/Board.jsx";
 import ResultCard from "./components/ResultCard.jsx";
 import ClipDialog from "./components/ClipDialog.jsx";
@@ -114,10 +120,24 @@ function IconButton({ icon: Icon, label, ...props }) {
 }
 
 function AnalysisIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 4 8-9" /><path d="M15 6h5v5" /></svg>;
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 17l5-6 4 4 8-9" />
+      <path d="M15 6h5v5" />
+    </svg>
+  );
 }
 
 function Modal({ title, onClose, children, wide = false }) {
+  const { t } = useLanguage();
   const panel = useRef(null);
   useEffect(() => {
     const previous = document.activeElement;
@@ -160,7 +180,7 @@ function Modal({ title, onClose, children, wide = false }) {
       >
         <header className="modal-header">
           <h2>{title}</h2>
-          <IconButton icon={XMarkIcon} label="关闭" onClick={onClose} />
+          <IconButton icon={XMarkIcon} label={t("关闭")} onClick={onClose} />
         </header>
         <div className="modal-body">{children}</div>
       </section>
@@ -169,6 +189,7 @@ function Modal({ title, onClose, children, wide = false }) {
 }
 
 function Sidebar({ navigate, path }) {
+  const { t } = useLanguage();
   return (
     <aside className="sidebar">
       <a
@@ -180,12 +201,10 @@ function Sidebar({ navigate, path }) {
         }}
       >
         <img src="/source-assets/favicon.svg" alt="" />
-        <strong>barricade.gg</strong>
+        <strong>Barricade Lab</strong>
       </a>
       <nav>
-        {[
-          [HomeIcon, "对局", "/"],
-        ].map(([Icon, text, href]) => (
+        {[[HomeIcon, t("对局"), "/"]].map(([Icon, text, href]) => (
           <a
             key={href}
             className={path === href ? "active" : ""}
@@ -209,12 +228,9 @@ function Sidebar({ navigate, path }) {
           }}
         >
           <BookOpenIcon />
-          玩法
+          {t("玩法")}
         </a>
-        <span className="language">
-          <GlobeAltIcon />
-          简体中文
-        </span>
+        <LanguageSelector />
         <a
           href="/settings"
           onClick={(event) => {
@@ -223,7 +239,7 @@ function Sidebar({ navigate, path }) {
           }}
         >
           <Cog6ToothIcon />
-          设置
+          {t("设置")}
         </a>
       </nav>
     </aside>
@@ -231,44 +247,49 @@ function Sidebar({ navigate, path }) {
 }
 
 function MobileReplayHeader({ navigate }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   return (
     <header className="mobile-replay-header">
       <div className="mobile-replay-header-top">
-        <button aria-label="回到大厅" onClick={() => navigate("/")}>
+        <button aria-label={t("回到大厅")} onClick={() => navigate("/")}>
           <img src="/source-assets/favicon.svg" alt="" />
         </button>
         <div className="mobile-header-actions">
+          <LanguageSelector />
           <div className="menu-anchor">
             <IconButton
               icon={Bars3Icon}
-              label="导航菜单"
+              label={t("导航菜单")}
               aria-expanded={open}
               onClick={() => setOpen(!open)}
             />
             {open && (
               <div className="options-menu mobile-header-menu">
-                <button onClick={() => navigate("/rules")}>玩法</button>
-                <button onClick={() => navigate("/settings")}>设置</button>
+                <button onClick={() => navigate("/rules")}>{t("玩法")}</button>
+                <button onClick={() => navigate("/settings")}>
+                  {t("设置")}
+                </button>
               </div>
             )}
           </div>
         </div>
       </div>
       <nav>
-        <button onClick={() => navigate("/")}>对局</button>
+        <button onClick={() => navigate("/")}>{t("对局")}</button>
       </nav>
     </header>
   );
 }
 
 function PlayerCard({ player, state, name, highlighted }) {
+  const { t } = useLanguage();
   return (
     <div className={`player-card ${highlighted ? "highlighted" : ""}`}>
       <div className="player-name">
         <span className={`player-dot player-${player}`} />
         {name}
-        {highlighted && <span className="sr-only">当前回合</span>}
+        {highlighted && <span className="sr-only">{t("当前回合")}</span>}
       </div>
       <div className="wall-count">
         <span className="wall-ticks">
@@ -288,6 +309,7 @@ function PlayerCard({ player, state, name, highlighted }) {
 }
 
 function Variation({ branch, branchId, selection, onBranch, onDeleteBranch }) {
+  const { t } = useLanguage();
   return (
     <div
       className={`variation ${selection.branchId === branchId ? "selected-variation" : ""}`}
@@ -316,7 +338,7 @@ function Variation({ branch, branchId, selection, onBranch, onDeleteBranch }) {
       <span>)</span>
       <IconButton
         icon={XMarkIcon}
-        label={`删除变化 ${branchId + 1}`}
+        label={t("删除变化 {number}", { number: branchId + 1 })}
         onClick={() => onDeleteBranch(branchId)}
       />
     </div>
@@ -331,13 +353,14 @@ function MoveList({
   onDeleteBranch,
   replaying,
 }) {
+  const { t } = useLanguage();
   const end = useRef(null);
   useEffect(() => {
     if (!replaying) end.current?.scrollIntoView({ block: "nearest" });
   }, [record.moves.length, replaying]);
   return (
-    <div className="move-list" aria-label="棋谱">
-      {!record.moves.length && <p className="empty-moves">还没有走棋</p>}
+    <div className="move-list" aria-label={t("棋谱")}>
+      {!record.moves.length && <p className="empty-moves">{t("还没有走棋")}</p>}
       {Array.from(
         { length: Math.ceil(record.moves.length / 2) },
         (_, round) => (
@@ -388,6 +411,7 @@ function MoveList({
 }
 
 function ImportForm({ onImport }) {
+  const { t } = useLanguage();
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   const submit = (value) => {
@@ -400,7 +424,7 @@ function ImportForm({ onImport }) {
       else record = createRecord(input.split(/[\s,]+/).filter(Boolean));
       onImport(record);
     } catch (failure) {
-      setError(`棋谱无法载入。${failure.message}`);
+      setError(message("棋谱无法载入。{error}", { error: failure.message }));
     }
   };
   return (
@@ -411,7 +435,7 @@ function ImportForm({ onImport }) {
       }}
     >
       <label className="field-label" htmlFor="record-input">
-        粘贴棋谱、回放链接或 JSON
+        {t("粘贴棋谱、回放链接或 JSON")}
       </label>
       <textarea
         id="record-input"
@@ -422,7 +446,7 @@ function ImportForm({ onImport }) {
         required
       />
       <label className="file-input">
-        选择棋谱文件
+        {t("选择棋谱文件")}
         <input
           type="file"
           accept=".json,application/json"
@@ -439,17 +463,18 @@ function ImportForm({ onImport }) {
       </label>
       {error && (
         <p className="error" role="alert">
-          {error}
+          {t(error)}
         </p>
       )}
       <button className="primary full-width" type="submit">
-        载入棋谱
+        {t("载入棋谱")}
       </button>
     </form>
   );
 }
 
 export default function App() {
+  const { t, locale } = useLanguage();
   const [locationKey, setLocationKey] = useState(currentRoute());
   const path = locationKey.split("?")[0];
   const isReplay = path === "/analysis";
@@ -531,10 +556,12 @@ export default function App() {
     (isComputer && state.turn !== human);
   const names = isComputer
     ? {
-        [human]: "你",
-        [3 - human]: `电脑 · ${strategyNames[strategy] || strategy}`,
+        [human]: t("你"),
+        [3 - human]: t("电脑 · {strategy}", {
+          strategy: t(strategyNames[strategy] || strategy),
+        }),
       }
-    : { 1: "玩家 1", 2: "玩家 2" };
+    : { 1: t("玩家 1"), 2: t("玩家 2") };
   const topPlayer = flipped ? 1 : 2;
   const bottomPlayer = 3 - topPlayer;
 
@@ -550,7 +577,10 @@ export default function App() {
       frame = requestAnimationFrame(() => {
         if (window.innerWidth >= 1024) return;
         const boardTop = board.getBoundingClientRect().top + window.scrollY;
-        const fit = Math.max(260, Math.floor(window.innerHeight - boardTop - rack.offsetHeight - 118));
+        const fit = Math.max(
+          260,
+          Math.floor(window.innerHeight - boardTop - rack.offsetHeight - 118),
+        );
         layout.style.setProperty("--mobile-board-fit", `${fit}px`);
       });
     };
@@ -558,7 +588,11 @@ export default function App() {
     observer.observe(rack);
     window.addEventListener("resize", measure);
     measure();
-    return () => { cancelAnimationFrame(frame); observer.disconnect(); window.removeEventListener("resize", measure); };
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
   }, [isGame, isReplay]);
 
   useEffect(() => {
@@ -1114,19 +1148,19 @@ export default function App() {
         {(thinking || aiError) && (
           <div className="ai-status" role="status">
             {thinking ? (
-              "思考中…"
+              t("思考中…")
             ) : (
               <>
-                <p>{aiError}</p>
+                <p>{t(aiError)}</p>
                 <button
                   onClick={() => {
                     setAiError("");
                     setRetry((value) => value + 1);
                   }}
                 >
-                  重试
+                  {t("重试")}
                 </button>
-                <button onClick={newGame}>重新开始</button>
+                <button onClick={newGame}>{t("重新开始")}</button>
               </>
             )}
           </div>
@@ -1134,10 +1168,12 @@ export default function App() {
         {suggestion && (
           <div className="suggestion" role="status">
             {suggestion.loading
-              ? "分析中…"
-              : suggestion.error || (
+              ? t("分析中…")
+              : (suggestion.error && t(suggestion.error)) || (
                   <>
-                    <span>{suggestion.source}建议</span>
+                    <span>
+                      {t("{strategy}建议", { strategy: t(suggestion.source) })}
+                    </span>
                     <button
                       onClick={() =>
                         handleAction({
@@ -1168,7 +1204,7 @@ export default function App() {
             aria-expanded={rackExpanded}
             onClick={() => setRackExpanded(!rackExpanded)}
           >
-            拖放路障{" "}
+            {t("拖放路障")}{" "}
             <ChevronDownIcon
               className={
                 rackExpanded ? "rack-chevron expanded" : "rack-chevron"
@@ -1182,13 +1218,15 @@ export default function App() {
               <button
                 key={kind}
                 className={`rack-piece rack-${kind} player-${state.turn}`}
-                aria-label={`拖放${kind === "h" ? "横" : "竖"}墙`}
+                aria-label={kind === "h" ? t("拖放横墙") : t("拖放竖墙")}
                 disabled={locked || state.remaining[state.turn - 1] === 0}
                 onPointerDown={(event) => startDrag(kind, event)}
               >
                 <span className={mobile ? "rack-chip" : "rack-plain"}>
                   <i />
-                  {mobile && <span>{kind === "h" ? "横向" : "纵向"}</span>}
+                  {mobile && (
+                    <span>{kind === "h" ? t("横向") : t("纵向")}</span>
+                  )}
                 </span>
               </button>
             ))}
@@ -1203,17 +1241,19 @@ export default function App() {
         <>
           <button
             className="menu-dismiss"
-            aria-label="关闭菜单"
+            aria-label={t("关闭菜单")}
             onClick={() => setMenu(false)}
           />
           <div className="options-menu">
+            <LanguageSelector />
             <button
               onClick={() => {
                 setRack(!rack);
                 setMenu(false);
               }}
             >
-              {rack && <CheckIcon />}拖放路障
+              {rack && <CheckIcon />}
+              {t("拖放路障")}
             </button>
             <button
               onClick={() => {
@@ -1221,7 +1261,7 @@ export default function App() {
                 setMenu(false);
               }}
             >
-              切换到{light ? "深色" : "浅色"}棋盘
+              {light ? t("切换到深色棋盘") : t("切换到浅色棋盘")}
             </button>
             <button
               onClick={() => {
@@ -1229,9 +1269,11 @@ export default function App() {
                 setMenu(false);
               }}
             >
-              本地对局记录
+              {t("本地对局记录")}
             </button>
-            {!isReplay && <button onClick={saveRecord}>导出棋谱 JSON</button>}
+            {!isReplay && (
+              <button onClick={saveRecord}>{t("导出棋谱 JSON")}</button>
+            )}
             {isReplay && (
               <>
                 <button
@@ -1240,7 +1282,7 @@ export default function App() {
                     copyText(shareUrl(encodeShare(record)));
                   }}
                 >
-                  分享回放
+                  {t("分享回放")}
                 </button>
                 <button
                   onClick={() => {
@@ -1248,7 +1290,7 @@ export default function App() {
                     setFlipped(!flipped);
                   }}
                 >
-                  旋转棋盘
+                  {t("旋转棋盘")}
                 </button>
                 <button
                   onClick={() => {
@@ -1256,9 +1298,9 @@ export default function App() {
                     setMenu(false);
                   }}
                 >
-                  载入棋谱
+                  {t("载入棋谱")}
                 </button>
-                <button onClick={saveRecord}>保存棋谱</button>
+                <button onClick={saveRecord}>{t("保存棋谱")}</button>
               </>
             )}
           </div>
@@ -1272,36 +1314,36 @@ export default function App() {
         <div className="playback-buttons">
           <IconButton
             icon={BackwardIcon}
-            label="首步"
+            label={t("首步")}
             onClick={goFirst}
             disabled={selection.cursor < 0 && !branch}
           />
           <IconButton
             icon={ChevronLeftIcon}
-            label="上一步"
+            label={t("上一步")}
             onClick={() => step(-1)}
             disabled={!canPrev}
           />
           <IconButton
             icon={playing ? PauseSolidIcon : PlaySolidIcon}
-            label={playing ? "暂停" : "播放"}
+            label={playing ? t("暂停") : t("播放")}
             onClick={togglePlay}
             disabled={!record.moves.length && !branch}
           />
           <IconButton
             icon={ChevronRightIcon}
-            label="下一步"
+            label={t("下一步")}
             onClick={() => step(1)}
             disabled={!canNext}
           />
           <IconButton
             icon={ForwardIcon}
-            label="末步"
+            label={t("末步")}
             onClick={goLast}
             disabled={selection.cursor === record.moves.length - 1 && !branch}
           />
           <select
-            aria-label="回放速度"
+            aria-label={t("回放速度")}
             value={speed}
             onChange={(event) => setSpeed(Number(event.target.value))}
           >
@@ -1315,18 +1357,18 @@ export default function App() {
         <div className="analysis-actions">
           <button onClick={() => setModal("analyze")}>
             <AnalysisIcon />
-            分析对局
+            {t("分析对局")}
           </button>
           <IconButton
             icon={ArrowDownTrayIcon}
-            label="下载片段"
+            label={t("下载片段")}
             onClick={() => setModal("clip")}
           />
           {mobile ? (
             <div className="menu-anchor mobile-replay-options">
               <IconButton
                 icon={EllipsisHorizontalIcon}
-                label="更多"
+                label={t("更多")}
                 onClick={() => setMenu(!menu)}
               />
               {optionsMenu()}
@@ -1335,12 +1377,12 @@ export default function App() {
             <>
               <IconButton
                 icon={LinkIcon}
-                label="分享回放"
+                label={t("分享回放")}
                 onClick={() => copyText(shareUrl(encodeShare(record)))}
               />
               <IconButton
                 icon={ArrowsUpDownIcon}
-                label="旋转棋盘"
+                label={t("旋转棋盘")}
                 onClick={() => setFlipped(!flipped)}
               />
             </>
@@ -1368,7 +1410,7 @@ export default function App() {
             <div className="mobile-toolbar">
               <IconButton
                 icon={ChevronLeftIcon}
-                label="回到大厅"
+                label={t("回到大厅")}
                 onClick={() => navigate("/")}
               />
               {!isReplay && (
@@ -1379,12 +1421,12 @@ export default function App() {
                     className={`mobile-resign ${confirmResign ? "danger" : ""}`}
                   >
                     <FlagIcon />
-                    {confirmResign ? "确定？" : "认输"}
+                    {confirmResign ? t("确定？") : t("认输")}
                   </button>
                   {!isComputer && (
                     <IconButton
                       icon={ArrowUturnLeftIcon}
-                      label="悔棋"
+                      label={t("悔棋")}
                       disabled={!record.moves.length || finished}
                       onClick={undo}
                     />
@@ -1397,12 +1439,12 @@ export default function App() {
               >
                 {record.moves.length
                   ? `${Math.ceil(record.moves.length / 2)}. ${record.moves.slice(-2).join(" ")}`
-                  : "还没有走棋"}
+                  : t("还没有走棋")}
               </button>
               <div className="menu-anchor">
                 <IconButton
                   icon={EllipsisHorizontalIcon}
-                  label="更多"
+                  label={t("更多")}
                   onClick={() => setMenu(!menu)}
                 />
                 {optionsMenu()}
@@ -1423,7 +1465,7 @@ export default function App() {
                     key={player}
                     player={player}
                     state={state}
-                    name={`Player ${player}`}
+                    name={t("玩家 {player}", { player })}
                     highlighted={state.turn === player}
                   />
                 ))}
@@ -1441,14 +1483,24 @@ export default function App() {
             >
               {finished && (
                 <ResultCard
-                  title={isComputer
+                  title={
+                    isComputer
                       ? record.result.winner === human
-                        ? "你赢了"
-                        : "你输了"
-                      : `玩家 ${record.result.winner} 获胜！`}
-                  description={record.result.reason === "resign"
-                      ? `${names[3 - record.result.winner]}认输了`
-                      : `${names[record.result.winner]}先抵达终点`}
+                        ? t("你赢了")
+                        : t("你输了")
+                      : t("玩家 {player} 获胜！", {
+                          player: record.result.winner,
+                        })
+                  }
+                  description={
+                    record.result.reason === "resign"
+                      ? t("{player}认输了", {
+                          player: names[3 - record.result.winner],
+                        })
+                      : t("{player}先抵达终点", {
+                          player: names[record.result.winner],
+                        })
+                  }
                   onNewGame={newGame}
                   onHome={() => navigate("/")}
                   onAnalyze={() => navigate(encodeShare(record))}
@@ -1457,7 +1509,10 @@ export default function App() {
               )}
             </Board>
             {isReplay && (
-              <section className="mobile-replay-panel" aria-label="回放面板">
+              <section
+                className="mobile-replay-panel"
+                aria-label={t("回放面板")}
+              >
                 {replayControls(true)}
                 <MoveList
                   record={record}
@@ -1484,7 +1539,7 @@ export default function App() {
             </div>
             <section
               className="game-panel"
-              aria-label={isReplay ? "回放面板" : "对局面板"}
+              aria-label={isReplay ? t("回放面板") : t("对局面板")}
             >
               <header className="panel-toolbar">
                 {!isReplay && (
@@ -1493,26 +1548,26 @@ export default function App() {
                     onClick={() => navigate("/")}
                   >
                     <ArrowLeftIcon />
-                    大厅
+                    {t("大厅")}
                   </button>
                 )}
                 {isReplay && <span className="replay-toolbar-spacer" />}
                 <IconButton
                   icon={muted ? SpeakerXMarkIcon : SpeakerWaveIcon}
-                  label={muted ? "开启声音" : "关闭声音"}
+                  label={muted ? t("开启声音") : t("关闭声音")}
                   onClick={() => setMuted(!muted)}
                 />
                 {!isReplay && (
                   <IconButton
                     icon={ArrowsUpDownIcon}
-                    label="旋转棋盘"
+                    label={t("旋转棋盘")}
                     onClick={() => setFlipped(!flipped)}
                   />
                 )}
                 <div className="menu-anchor">
                   <IconButton
                     icon={EllipsisHorizontalIcon}
-                    label="更多"
+                    label={t("更多")}
                     onClick={() => setMenu(!menu)}
                   />
                   {optionsMenu()}
@@ -1525,7 +1580,7 @@ export default function App() {
                       key={player}
                       player={player}
                       state={state}
-                      name={`Player ${player}`}
+                      name={t("玩家 {player}", { player })}
                       highlighted={state.turn === player}
                     />
                   ))}
@@ -1573,7 +1628,7 @@ export default function App() {
                       onClick={undo}
                       disabled={!record.moves.length || finished || thinking}
                     >
-                      悔棋
+                      {t("悔棋")}
                     </button>
                   )}
                   <button
@@ -1582,7 +1637,7 @@ export default function App() {
                     disabled={locked}
                   >
                     <FlagIcon />
-                    {confirmResign ? "确定？" : "认输"}
+                    {confirmResign ? t("确定？") : t("认输")}
                   </button>
                 </footer>
               )}
@@ -1601,16 +1656,19 @@ export default function App() {
               }}
             >
               <img src="/source-assets/favicon.svg" alt="" />
-              Barricade
+              Barricade Lab
             </a>
-            <button onClick={() => navigate("/")}>
-              <HomeIcon />
-              首页
-            </button>
+            <div className="computer-header-actions">
+              <LanguageSelector />
+              <button onClick={() => navigate("/")}>
+                <HomeIcon />
+                {t("首页")}
+              </button>
+            </div>
           </header>
           <section className="computer-card">
-            <h1>与电脑对战</h1>
-            <label className="field-label">执子</label>
+            <h1>{t("与电脑对战")}</h1>
+            <label className="field-label">{t("执子")}</label>
             <div className="side-options">
               {[1, 2].map((player) => (
                 <button
@@ -1619,13 +1677,13 @@ export default function App() {
                   onClick={() => setHuman(player)}
                 >
                   <span className={`player-dot player-${player}`} />
-                  {player === 1 ? "红方" : "蓝方"}
+                  {player === 1 ? t("红方") : t("蓝方")}
                 </button>
               ))}
             </div>
-            <p className="muted">{human === 1 ? "你先走" : "电脑先走"}</p>
+            <p className="muted">{human === 1 ? t("你先走") : t("电脑先走")}</p>
             <label className="field-label" htmlFor="strategy">
-              本地策略接口
+              {t("本地策略接口")}
             </label>
             <select
               id="strategy"
@@ -1634,16 +1692,18 @@ export default function App() {
             >
               {Object.entries(strategyNames).map(([id, name]) => (
                 <option key={id} value={id}>
-                  {name}
-                  {["dl", "rl", "search"].includes(id) ? "（需配置服务）" : ""}
+                  {t(name)}
+                  {["dl", "rl", "search"].includes(id)
+                    ? t("（需配置服务）")
+                    : ""}
                 </option>
               ))}
             </select>
             {["dl", "rl", "search"].includes(strategy) && (
               <label className="field-label">
-                策略服务地址
+                {t("策略服务地址")}
                 <input
-                  aria-label="策略服务地址"
+                  aria-label={t("策略服务地址")}
                   value={endpoints[strategy] || ""}
                   onChange={(event) =>
                     setEndpoints({
@@ -1656,7 +1716,9 @@ export default function App() {
               </label>
             )}
             <p className="integration-note">
-              最短路和随机策略是基线测试；深度学习、强化学习和搜索策略需要接入你自己的服务。
+              {t(
+                "最短路和随机策略是基线测试；深度学习、强化学习和搜索策略需要接入你自己的服务。",
+              )}
             </p>
             <button
               className="primary full-width"
@@ -1676,7 +1738,7 @@ export default function App() {
                 setComputerStarted(true);
               }}
             >
-              开始对局
+              {t("开始对局")}
             </button>
           </section>
         </main>
@@ -1684,33 +1746,38 @@ export default function App() {
         <main className="content-page with-sidebar">
           {path === "/rules" ? (
             <>
-              <h1>玩法</h1>
+              <h1>{t("玩法")}</h1>
               <section className="text-card">
-                <h2>双人经典模式</h2>
+                <h2>{t("双人经典模式")}</h2>
                 <p>
-                  在 9×9 棋盘上，红方从 e1 出发，蓝方从 e9
-                  出发。红方先行，率先到达对面任意一格的玩家获胜。
+                  {t(
+                    "在 9×9 棋盘上，红方从 e1 出发，蓝方从 e9 出发。红方先行，率先到达对面任意一格的玩家获胜。",
+                  )}
                 </p>
-                <h3>移动棋子</h3>
+                <h3>{t("移动棋子")}</h3>
                 <p>
-                  每回合可以上下左右移动一格。与对方相邻且身后畅通时，可以直接跳过对方。对方身后有墙或位于边界时，可以从两侧斜跳。
+                  {t(
+                    "每回合可以上下左右移动一格。与对方相邻且身后畅通时，可以直接跳过对方。对方身后有墙或位于边界时，可以从两侧斜跳。",
+                  )}
                 </p>
-                <h3>放置路障</h3>
+                <h3>{t("放置路障")}</h3>
                 <p>
-                  每人拥有 10
-                  道长两格的路障。每回合选择移动或放墙，路障对双方生效。路障不能重叠或交叉，必须为双方各保留至少一条到终点的路径。两道墙首尾相接的接缝允许另一道墙穿过。
+                  {t(
+                    "每人拥有 10 道长两格的路障。每回合选择移动或放墙，路障对双方生效。路障不能重叠或交叉，必须为双方各保留至少一条到终点的路径。两道墙首尾相接的接缝允许另一道墙穿过。",
+                  )}
                 </p>
                 <button className="primary" onClick={() => navigate("/local")}>
-                  开始本地对战
+                  {t("开始本地对战")}
                 </button>
               </section>
             </>
           ) : path === "/settings" ? (
             <>
-              <h1>设置</h1>
+              <h1>{t("设置")}</h1>
               <section className="text-card settings-card">
+                <LanguageSelector showLabel />
                 <label>
-                  声音
+                  {t("声音")}
                   <input
                     type="checkbox"
                     checked={!muted}
@@ -1718,7 +1785,7 @@ export default function App() {
                   />
                 </label>
                 <label>
-                  浅色棋盘
+                  {t("浅色棋盘")}
                   <input
                     type="checkbox"
                     checked={light}
@@ -1726,39 +1793,37 @@ export default function App() {
                   />
                 </label>
                 <label>
-                  拖放路障
+                  {t("拖放路障")}
                   <input
                     type="checkbox"
                     checked={rack}
                     onChange={(event) => setRack(event.target.checked)}
                   />
                 </label>
-                <h2>AI 接口</h2>
+                <h2>{t("AI 接口")}</h2>
                 <p>
-                  支持浏览器策略、Web Worker 和本地 HTTP
-                  服务。深度学习、强化学习与搜索型 AI 共用 209
-                  个动作编号和合法动作掩码。
+                  {t(
+                    "支持浏览器策略、Web Worker 和本地 HTTP 服务。深度学习、强化学习与搜索型 AI 共用 209 个动作编号和合法动作掩码。",
+                  )}
                 </p>
                 <button
                   className="secondary"
                   onClick={() => navigate("/computer")}
                 >
-                  选择本地策略
+                  {t("选择本地策略")}
                 </button>
               </section>
             </>
           ) : (
             <>
-              <h1>页面未找到</h1>
+              <h1>{t("页面未找到")}</h1>
               <section className="text-card">
-                <p>
-                  请从首页选择本地对战或人机对战。
-                </p>
+                <p>{t("请从首页选择本地对战或人机对战。")}</p>
                 <button className="primary" onClick={() => navigate("/local")}>
-                  本地对战
+                  {t("本地对战")}
                 </button>
                 <button className="secondary" onClick={() => navigate("/")}>
-                  回到大厅
+                  {t("回到大厅")}
                 </button>
               </section>
             </>
@@ -1767,7 +1832,7 @@ export default function App() {
       )}
       {notice && (
         <div className="toast" role="status">
-          {notice}
+          {t(notice)}
         </div>
       )}
       {dragPosition && (
@@ -1784,32 +1849,42 @@ export default function App() {
         />
       )}
       {modal === "records" && (
-        <Modal title="本地对局记录" onClose={() => setModal(null)} wide>
+        <Modal title={t("本地对局记录")} onClose={() => setModal(null)} wide>
           <p className="muted">
-            对局有行动后自动保存于此设备。刷新本地对战会开启新棋局，可在这里恢复记录。
+            {t(
+              "对局有行动后自动保存于此设备。刷新本地对战会开启新棋局，可在这里恢复记录。",
+            )}
           </p>
-          {!savedRecords.length && <p>暂无保存的对局。</p>}
+          {!savedRecords.length && <p>{t("暂无保存的对局。")}</p>}
           <div className="saved-record-list">
             {savedRecords.map((entry) => (
               <div className="saved-record" key={entry.id}>
                 <div>
                   <strong>
                     {entry.mode === "computer"
-                      ? `人机 · ${strategyNames[entry.strategy] || entry.strategy}`
-                      : "本地双人"}
+                      ? t("人机 · {strategy}", {
+                          strategy: t(
+                            strategyNames[entry.strategy] || entry.strategy,
+                          ),
+                        })
+                      : t("本地双人")}
                   </strong>
                   <p className="muted">
-                    {new Date(entry.updatedAt).toLocaleString()} ·{" "}
-                    {entry.record.moves.length} 步 ·{" "}
-                    {entry.record.result ? "已结束" : "进行中"}
+                    {new Date(entry.updatedAt).toLocaleString(locale)} ·{" "}
+                    {t("{count} 步", { count: entry.record.moves.length })} ·{" "}
+                    {entry.record.result ? t("已结束") : t("进行中")}
                   </p>
                 </div>
                 <div>
-                  <button onClick={() => restoreRecord(entry)}>恢复</button>{" "}
-                  <button onClick={() => navigate(encodeShare(entry.record))}>
-                    回放
+                  <button onClick={() => restoreRecord(entry)}>
+                    {t("恢复")}
                   </button>{" "}
-                  <button onClick={() => deleteSaved(entry.id)}>删除</button>
+                  <button onClick={() => navigate(encodeShare(entry.record))}>
+                    {t("回放")}
+                  </button>{" "}
+                  <button onClick={() => deleteSaved(entry.id)}>
+                    {t("删除")}
+                  </button>
                 </div>
               </div>
             ))}
@@ -1817,12 +1892,12 @@ export default function App() {
         </Modal>
       )}
       {modal === "import" && (
-        <Modal title="载入棋谱" onClose={() => setModal(null)}>
+        <Modal title={t("载入棋谱")} onClose={() => setModal(null)}>
           <ImportForm onImport={(next) => navigate(encodeShare(next))} />
         </Modal>
       )}
       {modal === "moves" && (
-        <Modal title="棋谱" onClose={() => setModal(null)}>
+        <Modal title={t("棋谱")} onClose={() => setModal(null)}>
           <MoveList
             record={record}
             selection={selection}
@@ -1837,8 +1912,8 @@ export default function App() {
         </Modal>
       )}
       {modal === "analyze" && (
-        <Modal title="分析对局" onClose={() => setModal(null)}>
-          <p className="muted">选择已接入的策略分析当前局面。</p>
+        <Modal title={t("分析对局")} onClose={() => setModal(null)}>
+          <p className="muted">{t("选择已接入的策略分析当前局面。")}</p>
           <div className="analysis-strategies">
             {Object.entries(strategyNames)
               .filter(([id]) => id !== "random")
@@ -1848,17 +1923,17 @@ export default function App() {
                   key={id}
                   onClick={() => analyze(id)}
                 >
-                  {name}
+                  {t(name)}
                 </button>
               ))}
           </div>
           <p className="integration-note">
-            学习与搜索模型需先配置本地服务。最短路基线仅给出走棋建议。
+            {t("学习与搜索模型需先配置本地服务。最短路基线仅给出走棋建议。")}
           </p>
         </Modal>
       )}
       {modal?.type === "copy" && (
-        <Modal title="复制内容" onClose={() => setModal(null)}>
+        <Modal title={t("复制内容")} onClose={() => setModal(null)}>
           <textarea
             readOnly
             value={modal.text}

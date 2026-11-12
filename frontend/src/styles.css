@@ -318,11 +318,11 @@ h3 {
   box-shadow: 0 2px 3px #0005;
   pointer-events: none;
 }
-.analysis-board .placed-wall.wall-owner-1 {
-  background: #b25656;
+.placed-wall.wall-owner-1 {
+  background: #ef4444;
 }
-.analysis-board .placed-wall.wall-owner-2 {
-  background: #5b7fb8;
+.placed-wall.wall-owner-2 {
+  background: #3b82f6;
 }
 .last-wall {
   box-shadow: 0 0 0 2px #f59e0b80;
@@ -352,9 +352,6 @@ h3 {
   outline-color: #059669;
 }
 .light-board .cell.legal:not(.goal-red):not(.goal-blue) { background: #ecfdf5; }
-.light-board .placed-wall {
-  background: #27272a;
-}
 .light-board .wall-slot:hover {
   background: #52525b77;
 }
@@ -826,6 +823,65 @@ button.danger {
   padding: 12px;
   font-size: 13px;
   color: #a1a1aa;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.language svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.language select {
+  min-width: 0;
+  padding: 5px 6px;
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
+  background: #18181b;
+  color: #e4e4e7;
+  font-size: 13px;
+}
+.options-menu .language {
+  padding: 8px 12px;
+}
+.computer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.computer-header-actions .language,
+.mobile-header-actions .language {
+  padding: 0;
+}
+.lobby-language {
+  display: none;
+}
+html[lang="en"] .result-card h1 {
+  white-space: normal;
+}
+html[lang="en"] .mobile-resign {
+  gap: 4px;
+  padding: 0 8px;
+}
+@media (max-width: 1023px) {
+  .lobby-language {
+    display: flex;
+    padding: 0;
+    margin-bottom: 12px;
+  }
+}
+@media (max-width: 400px) {
+  .computer-header-actions {
+    gap: 8px;
+  }
+  .computer-header-actions .language svg {
+    display: none;
+  }
+  .computer-page > header {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
 }
 .with-sidebar {
   margin-left: var(--sidebar-width);

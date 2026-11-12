@@ -1,0 +1,97 @@
+{
+  "rows": [
+    {
+      "width": 1146,
+      "route": "/",
+      "overflow": false
+    },
+    {
+      "width": 1146,
+      "route": "/computer",
+      "overflow": false
+    },
+    {
+      "width": 1146,
+      "route": "/rules",
+      "overflow": false
+    },
+    {
+      "width": 1146,
+      "route": "/settings",
+      "overflow": false
+    },
+    {
+      "width": 1146,
+      "route": "/analysis?moves=KYJgNMAcYBbALEA",
+      "overflow": false
+    },
+    {
+      "width": 1146,
+      "route": "/local",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/computer",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/rules",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/settings",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/analysis?moves=KYJgNMAcYBbALEA",
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "route": "/local",
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "/",
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "/computer",
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "/rules",
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "/settings",
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "/analysis?moves=KYJgNMAcYBbALEA",
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "route": "/local",
+      "overflow": false
+    }
+  ],
+  "visibleChineseLeaks": [],
+  "mobileResultOverflow": false,
+  "invalidLocaleFallback": "zh-CN"
+}

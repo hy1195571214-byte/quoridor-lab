@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n.jsx";
 import React, { useMemo, useState } from "react";
 import {
   actionError,
@@ -17,6 +18,7 @@ export default function Board({
   dragTarget = null,
   children,
 }) {
+  const { t } = useLanguage();
   const [hovered, setHovered] = useState(null);
   const destinations = useMemo(
     () => new Set(legalDestinations(state).map((square) => square.join(","))),
@@ -54,7 +56,7 @@ export default function Board({
           key={name}
           className={`cell ${row === 0 ? "goal-red" : ""} ${row === 8 ? "goal-blue" : ""} ${legal && !analysis ? "legal" : ""} ${lastMove === name ? "last-move" : ""} ${previousPawnSquare === name ? "move-from" : ""}`}
           style={{ gridRow: row * 2 + 2, gridColumn: col * 2 + 2 }}
-          aria-label={`${name}${player ? (player === 1 ? "，红方棋子" : "，蓝方棋子") : ""}`}
+          aria-label={`${name}${player ? (player === 1 ? t("，红方棋子") : t("，蓝方棋子")) : ""}`}
           data-square={name}
           aria-disabled={disabled || !legal}
           onClick={() => !disabled && onAction(action)}
@@ -77,7 +79,10 @@ export default function Board({
             data-kind={kind}
             className={`wall-slot wall-${kind} ${isHovered ? "hovered" : ""} ${invalid ? "invalid" : ""} ${dragKind && kind !== dragKind ? "other-direction" : ""}`}
             style={wallStyle(kind, row, col)}
-            aria-label={`放置${kind === "h" ? "横" : "竖"}墙 ${name}`}
+            aria-label={t(
+              kind === "h" ? "放置横墙 {square}" : "放置竖墙 {square}",
+              { square: name },
+            )}
             disabled={disabled}
             onPointerEnter={() => setHovered(name)}
             onPointerLeave={() => setHovered(null)}
@@ -131,14 +136,18 @@ export default function Board({
           <span
             className="coordinate coordinate-rank"
             aria-hidden="true"
-            style={{ top: `calc(var(--board-pad) + ${(index + 0.5) / 9} * (100% - 2 * var(--board-pad)))` }}
+            style={{
+              top: `calc(var(--board-pad) + ${(index + 0.5) / 9} * (100% - 2 * var(--board-pad)))`,
+            }}
           >
             {9 - index}
           </span>
           <span
             className="coordinate coordinate-file"
             aria-hidden="true"
-            style={{ left: `calc(var(--board-pad) + ${(index + 0.5) / 9} * (100% - 2 * var(--board-pad)))` }}
+            style={{
+              left: `calc(var(--board-pad) + ${(index + 0.5) / 9} * (100% - 2 * var(--board-pad)))`,
+            }}
           >
             {String.fromCharCode(97 + index)}
           </span>

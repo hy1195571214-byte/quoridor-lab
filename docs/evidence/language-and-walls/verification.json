@@ -1,0 +1,65 @@
+{
+  "locale": "en",
+  "brand": "Barricade Lab",
+  "persisted": "en",
+  "home": [
+    {
+      "width": 1146,
+      "height": 727,
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "overflow": false
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "overflow": false
+    }
+  ],
+  "rules": true,
+  "settings": "Language\n简体中文\nEnglish\nSound\nLight board\nDrag walls\nAI interfaces\n\nConnect browser strategies, Web Workers or local HTTP services. Deep learning, reinforcement learning and search AI share 209 action IDs and a legal-action mask.\n\nChoose local strategy",
+  "chinese": true,
+  "strategies": "Shortest-path baseline\nRandom baseline\nDeep learning (service required)\nReinforcement learning (service required)\nSearch AI (service required)",
+  "afterSwitch": 2,
+  "darkColors": [
+    {
+      "class": "placed-wall wall-h wall-owner-1 ",
+      "color": "rgb(239, 68, 68)"
+    },
+    {
+      "class": "placed-wall wall-h wall-owner-2 last-wall",
+      "color": "rgb(59, 130, 246)"
+    }
+  ],
+  "lightColors": [
+    {
+      "class": "placed-wall wall-h wall-owner-1 ",
+      "color": "rgb(239, 68, 68)"
+    },
+    {
+      "class": "placed-wall wall-h wall-owner-2 last-wall",
+      "color": "rgb(59, 130, 246)"
+    }
+  ],
+  "replayColors": [
+    {
+      "class": "placed-wall wall-h wall-owner-1 ",
+      "color": "rgb(239, 68, 68)"
+    },
+    {
+      "class": "placed-wall wall-h wall-owner-2 ",
+      "color": "rgb(59, 130, 246)"
+    }
+  ],
+  "records": "Saved games\n\nGames are saved on this device after a move. Refreshing local play starts a new game. Resume saved games here.\n\nLocal two-player\n\n11/12/2026, 6:07:05 PM · 2 moves · In progress\n\nResume\nReplay\nDelete",
+  "result": "Player 1 wins! 🏆\n\nPlayer 1 reached the goal first\n\nPlay again\nLobby\nAnalyze\nGame record\nFull move history and result\nSave game",
+  "resultOverflow": false,
+  "importError": "Could not load the game. Invalid record JSON",
+  "clip": "Download clip\nSpeed\n1×\n2×\n3×\nView\nPlayer 1\nSound\nDownload",
+  "mobileChinese": true,
+  "mobileOverflow": false,
+  "errors": []
+}

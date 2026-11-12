@@ -1,3 +1,4 @@
+import { useLanguage } from "../i18n.jsx";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { replay } from "../game/rules.js";
 import { preloadGameSounds, playSoundInto } from "../game/preferences.js";
@@ -28,9 +29,14 @@ const supportedTypes = () =>
 
 function draw(ctx, state, previous, progress, flipped) {
   // Geometry and colors follow the original 9:16 canvas layout.
-  const size = 672, x = 24, unit = size / 47;
-  const cell = 4 * unit, gap = unit, pad = 1.5 * unit;
-  const badgeHeight = size * 96 / 1032, badgeWidth = size * 220 / 1032;
+  const size = 672,
+    x = 24,
+    unit = size / 47;
+  const cell = 4 * unit,
+    gap = unit,
+    pad = 1.5 * unit;
+  const badgeHeight = (size * 96) / 1032,
+    badgeWidth = (size * 220) / 1032;
   const y = (HEIGHT - size) / 2 + (badgeHeight + 28) / 2;
   const badgeY = y - 28 - badgeHeight;
   const badgePositions = [WIDTH / 2 - 12 - badgeWidth, WIDTH / 2 + 12];
@@ -38,8 +44,10 @@ function draw(ctx, state, previous, progress, flipped) {
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
   for (let i = 0; i < 2; i++) {
     const player = flipped ? 1 - i : i;
-    const bx = badgePositions[i], barWidth = 0.55 * badgeHeight;
-    const barHeight = 0.18 * badgeHeight, barGap = 0.2 * badgeHeight;
+    const bx = badgePositions[i],
+      barWidth = 0.55 * badgeHeight;
+    const barHeight = 0.18 * badgeHeight,
+      barGap = 0.2 * badgeHeight;
     ctx.fillStyle = "#232326";
     ctx.beginPath();
     ctx.roundRect(bx, badgeY, badgeWidth, badgeHeight, badgeHeight / 2);
@@ -47,15 +55,28 @@ function draw(ctx, state, previous, progress, flipped) {
     ctx.font = `700 ${0.56 * badgeHeight}px system-ui, sans-serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    const text = String(state.remaining[player]), measure = ctx.measureText(text);
+    const text = String(state.remaining[player]),
+      measure = ctx.measureText(text);
     const start = bx + (badgeWidth - barWidth - barGap - measure.width) / 2;
     ctx.fillStyle = colors[player];
     ctx.beginPath();
-    ctx.roundRect(start, badgeY + (badgeHeight - barHeight) / 2, barWidth, barHeight, barHeight / 2);
+    ctx.roundRect(
+      start,
+      badgeY + (badgeHeight - barHeight) / 2,
+      barWidth,
+      barHeight,
+      barHeight / 2,
+    );
     ctx.fill();
     ctx.fillStyle = "#F4F4F5";
-    ctx.fillText(text, start + barWidth + barGap,
-      badgeY + badgeHeight / 2 + (measure.actualBoundingBoxAscent - measure.actualBoundingBoxDescent) / 2);
+    ctx.fillText(
+      text,
+      start + barWidth + barGap,
+      badgeY +
+        badgeHeight / 2 +
+        (measure.actualBoundingBoxAscent - measure.actualBoundingBoxDescent) /
+          2,
+    );
   }
   ctx.fillStyle = "#E4E4E7";
   ctx.beginPath();
@@ -72,23 +93,37 @@ function draw(ctx, state, previous, progress, flipped) {
     ctx.translate(-size / 2, -size / 2);
   }
   const at = (r, c) => [pad + c * (cell + gap), pad + r * (cell + gap)];
-  const winner = state.winner && progress >= 1 ? state.pawns[state.winner - 1] : null;
-  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
-    const [px, py] = at(r, c);
-    const winning = winner && winner[0] === r && winner[1] === c;
-    ctx.fillStyle = winning ? "#FFFFFF" : r === 0 ? "#FBECEC" : r === 8 ? "#ECEFFB" : "#FAFAFA";
-    ctx.beginPath();
-    ctx.roundRect(px, py, cell, cell, 4);
-    ctx.fill();
-    if (winning) {
-      ctx.strokeStyle = "#F59E0B";
-      ctx.lineWidth = Math.max(2, 0.05 * cell);
-      const inset = ctx.lineWidth / 2;
+  const winner =
+    state.winner && progress >= 1 ? state.pawns[state.winner - 1] : null;
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++) {
+      const [px, py] = at(r, c);
+      const winning = winner && winner[0] === r && winner[1] === c;
+      ctx.fillStyle = winning
+        ? "#FFFFFF"
+        : r === 0
+          ? "#FBECEC"
+          : r === 8
+            ? "#ECEFFB"
+            : "#FAFAFA";
       ctx.beginPath();
-      ctx.roundRect(px + inset, py + inset, cell - 2 * inset, cell - 2 * inset, 4);
-      ctx.stroke();
+      ctx.roundRect(px, py, cell, cell, 4);
+      ctx.fill();
+      if (winning) {
+        ctx.strokeStyle = "#F59E0B";
+        ctx.lineWidth = Math.max(2, 0.05 * cell);
+        const inset = ctx.lineWidth / 2;
+        ctx.beginPath();
+        ctx.roundRect(
+          px + inset,
+          py + inset,
+          cell - 2 * inset,
+          cell - 2 * inset,
+          4,
+        );
+        ctx.stroke();
+      }
     }
-  }
   const wallOwners = new Map();
   state.history.forEach((move, i) => {
     if (move.length === 3) wallOwners.set(move, i % 2);
@@ -103,8 +138,10 @@ function draw(ctx, state, previous, progress, flipped) {
     ctx.fill();
   }
   for (let player = 0; player < 2; player++) {
-    const [r, c] = state.pawns[player], [pr, pc] = previous?.pawns[player] || [r, c];
-    let row = pr + (r - pr) * progress, col = pc + (c - pc) * progress;
+    const [r, c] = state.pawns[player],
+      [pr, pc] = previous?.pawns[player] || [r, c];
+    let row = pr + (r - pr) * progress,
+      col = pc + (c - pc) * progress;
     // A diagonal jump passes through the opponent's square in the source.
     if (previous && Math.abs(r - pr) === 1 && Math.abs(c - pc) === 1) {
       const [or, oc] = previous.pawns[1 - player];
@@ -130,6 +167,7 @@ export default function ClipDialog({
   flipped: initialFlipped = false,
   onClose,
 }) {
+  const { t } = useLanguage();
   const moves = record.moves.slice(0, MAX_MOVES);
   const states = useRef([]);
   const dialog = useRef(null);
@@ -267,7 +305,12 @@ export default function ClipDialog({
           (progressRef.current + delta * speedRef.current) % duration;
         // A loop starts a new first move, so it needs a fresh sound event.
         if (progressRef.current < priorPosition) previewMove.current = 0;
-        setProgress(Math.min(1000, (progressRef.current / Math.max(1, moves.length * 1000)) * 1000));
+        setProgress(
+          Math.min(
+            1000,
+            (progressRef.current / Math.max(1, moves.length * 1000)) * 1000,
+          ),
+        );
         const nextMove = Math.min(
           moves.length,
           Math.floor(progressRef.current / 1000) + 1,
@@ -277,7 +320,11 @@ export default function ClipDialog({
           soundRef.current &&
           previewAudio.current?.state === "running"
         ) {
-          playSoundInto(previewAudio.current, previewAudio.current.destination, moves[nextMove - 1]?.length === 3).catch(() => {});
+          playSoundInto(
+            previewAudio.current,
+            previewAudio.current.destination,
+            moves[nextMove - 1]?.length === 3,
+          ).catch(() => {});
         }
         previewMove.current = nextMove;
       }
@@ -303,9 +350,21 @@ export default function ClipDialog({
   const seek = (e) => {
     const p = Number(e.target.value);
     progressRef.current = (p / 1000) * moves.length * 1000;
-    previewMove.current = Math.min(moves.length, Math.floor(progressRef.current / 1000) + 1);
-    if (p < 1000 && moves.length && soundRef.current && previewAudio.current?.state === "running")
-      playSoundInto(previewAudio.current, previewAudio.current.destination, moves[Math.floor(progressRef.current / 1000)]?.length === 3).catch(() => {});
+    previewMove.current = Math.min(
+      moves.length,
+      Math.floor(progressRef.current / 1000) + 1,
+    );
+    if (
+      p < 1000 &&
+      moves.length &&
+      soundRef.current &&
+      previewAudio.current?.state === "running"
+    )
+      playSoundInto(
+        previewAudio.current,
+        previewAudio.current.destination,
+        moves[Math.floor(progressRef.current / 1000)]?.length === 3,
+      ).catch(() => {});
     setProgress(p);
     paint(progressRef.current);
   };
@@ -414,11 +473,17 @@ export default function ClipDialog({
         const t = Math.min(duration, (now - started) * speedRef.current);
         progressRef.current = t;
         paint(t);
-        setProgress(Math.min(1000, (t / Math.max(1, moves.length * 1000)) * 1000));
+        setProgress(
+          Math.min(1000, (t / Math.max(1, moves.length * 1000)) * 1000),
+        );
         setRecordingProgress((t / duration) * 100);
         const index = Math.min(moves.length, Math.floor(t / 1000) + 1);
         if (context && destination && index > 0 && index > lastSound.current)
-          playSoundInto(context, destination, moves[index - 1]?.length === 3).catch(() => {});
+          playSoundInto(
+            context,
+            destination,
+            moves[index - 1]?.length === 3,
+          ).catch(() => {});
         lastSound.current = index;
         if (t >= duration) media.stop();
         else frame = requestAnimationFrame(render);
@@ -452,13 +517,13 @@ export default function ClipDialog({
         }}
         role="dialog"
         aria-modal="true"
-        aria-label="下载片段"
+        aria-label={t("下载片段")}
       >
         <header className="clip-header">
-          <h2>下载片段</h2>
+          <h2>{t("下载片段")}</h2>
           <button
             className="icon-button"
-            aria-label="关闭"
+            aria-label={t("关闭")}
             disabled={busy}
             onClick={onClose}
           >
@@ -471,39 +536,39 @@ export default function ClipDialog({
             width={WIDTH}
             height={HEIGHT}
             className="clip-preview"
-            aria-label="视频预览"
+            aria-label={t("视频预览")}
           />
           <div className="clip-timeline">
-              <button
-                className="icon-button"
-                disabled={busy}
-                aria-label={playing ? "暂停" : "播放"}
-                onClick={() => {
-                  enablePreviewAudio();
-                  setPlaying(!playing);
-                }}
-              >
-                {playing ? (
-                  <PauseIcon className="clip-icon" />
-                ) : (
-                  <PlayIcon className="clip-icon" />
-                )}
-              </button>
-              <input
-                type="range"
-                min="0"
-                max="1000"
-                value={progress}
-                onChange={seek}
-                disabled={busy}
-                aria-label="视频进度"
-              />
+            <button
+              className="icon-button"
+              disabled={busy}
+              aria-label={playing ? t("暂停") : t("播放")}
+              onClick={() => {
+                enablePreviewAudio();
+                setPlaying(!playing);
+              }}
+            >
+              {playing ? (
+                <PauseIcon className="clip-icon" />
+              ) : (
+                <PlayIcon className="clip-icon" />
+              )}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1000"
+              value={progress}
+              onChange={seek}
+              disabled={busy}
+              aria-label={t("视频进度")}
+            />
           </div>
           <div className="clip-controls">
             <div className="clip-row">
-              <span>速度</span>
+              <span>{t("速度")}</span>
               <select
-                aria-label="速度"
+                aria-label={t("速度")}
                 value={speed}
                 disabled={busy}
                 onChange={(e) => setSpeed(Number(e.target.value))}
@@ -516,13 +581,13 @@ export default function ClipDialog({
               </select>
             </div>
             <div className="clip-row">
-              <span>视角</span>
+              <span>{t("视角")}</span>
               <button disabled={busy} onClick={() => setFlipped(!flipped)}>
-                {flipped ? "玩家2" : "玩家1"}
+                {flipped ? t("玩家2") : t("玩家1")}
               </button>
             </div>
             <label className="clip-row">
-              <span>声音</span>
+              <span>{t("声音")}</span>
               <input
                 type="checkbox"
                 checked={sound}
@@ -534,38 +599,48 @@ export default function ClipDialog({
               />
             </label>
             {record.moves.length > MAX_MOVES && (
-              <p className="clip-note">仅导出前 100 步。</p>
+              <p className="clip-note">{t("仅导出前 100 步。")}</p>
             )}
             {error && (
               <p className="clip-error" role="alert">
-                {error}
+                {t(error)}
               </p>
             )}
-            {busy && <p className="clip-note">正在录制 {Math.round(recordingProgress)}%</p>}
-            {format === "WebM" && <p className="clip-note">此浏览器将以 WebM 格式保存视频。</p>}
+            {busy && (
+              <p className="clip-note">
+                {t("正在录制 {percent}%", {
+                  percent: Math.round(recordingProgress),
+                })}
+              </p>
+            )}
+            {format === "WebM" && (
+              <p className="clip-note">
+                {t("此浏览器将以 WebM 格式保存视频。")}
+              </p>
+            )}
           </div>
         </div>
         <footer className="clip-footer">
-            {busy ? (
-                <button
-                  className="clip-download"
-                  onClick={() => {
-                    exportGeneration.current++;
-                    if (recorder.current) recorder.current.cancelExport();
-                    else {
-                      audio.current?.close().catch(() => {});
-                      audio.current = null;
-                      setBusy(false);
-                    }
-                  }}
-                >
-                  取消导出
-                </button>
-            ) : (
-              <button className="clip-download" onClick={download}>
-                <ArrowDownTrayIcon className="clip-icon" /> 下载
-              </button>
-            )}
+          {busy ? (
+            <button
+              className="clip-download"
+              onClick={() => {
+                exportGeneration.current++;
+                if (recorder.current) recorder.current.cancelExport();
+                else {
+                  audio.current?.close().catch(() => {});
+                  audio.current = null;
+                  setBusy(false);
+                }
+              }}
+            >
+              {t("取消导出")}
+            </button>
+          ) : (
+            <button className="clip-download" onClick={download}>
+              <ArrowDownTrayIcon className="clip-icon" /> {t("下载")}
+            </button>
+          )}
         </footer>
       </section>
     </div>
