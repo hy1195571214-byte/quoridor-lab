@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quoridor-lab"
-version = "0.1.4"
+version = "0.1.5"
 description = "Quoridor Lab rules, local training API and reference expert adapter"
 requires-python = ">=3.11"
 dependencies = ["numpy>=1.24", "gymnasium>=1.0", "python-socketio[client]>=5.11,<6", "fastapi>=0.110", "uvicorn>=0.30"]

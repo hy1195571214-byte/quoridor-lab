@@ -53,7 +53,7 @@ def create_app(remote=None, agents=None, record_dir=None):
         yield
         remote.close()
 
-    app = FastAPI(title="Quoridor Lab Local Training API", version="0.1.4", lifespan=lifespan)
+    app = FastAPI(title="Quoridor Lab Local Training API", version="0.1.5", lifespan=lifespan)
     # Offline file:// pages have the Origin "null"; loopback web dev servers
     # may run on any port. The server CLI binds only to 127.0.0.1.
     app.add_middleware(CORSMiddleware, allow_origins=["null"],

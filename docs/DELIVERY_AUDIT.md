@@ -20,6 +20,10 @@
 
 本次检查截图已保存在 `docs/evidence/replica-desktop.png`、`replica-mobile.png`、`replica-replay.png` 和 `replica-clip.png`，实测棋谱为 `docs/evidence/replica-local-game.json`，测试摘要见 `docs/evidence/replica-verification.json`。参考站的早期观察与来源见 [公开源码核对](REPLICA_SOURCE_AUDIT.md) 和 [现场观察](REPLICA_LIVE_AUDIT.md)。
 
+## v0.1.5 部署包更新
+
+2026-11-12 重新构建发布包，纳入公开仓库的 Vercel 配置、部署回归检查和最新组员部署说明。前端与 Python 包版本统一为 0.1.5。发布 ZIP 已检查包含 `frontend/vercel.json`、完整源码、离线 HTML、后端、训练接口及说明文档，逐文件 SHA-256 与 CRC 校验通过。解压目录和旧入口兼容链接的内容同步更新。Vercel 配置与本地构建检查通过，实际托管部署由组员按指南操作。
+
 ## v0.1.4 Quoridor Lab 全面更名
 
 2026-11-12 按用户要求将本地项目统一命名为 Quoridor Lab。
