@@ -25,12 +25,9 @@ import {
   LinkIcon,
   PauseIcon,
   PlayIcon,
-  PuzzlePieceIcon,
   SpeakerWaveIcon,
   SpeakerXMarkIcon,
   TrashIcon,
-  TrophyIcon,
-  TvIcon,
   XMarkIcon,
   Cog6ToothIcon,
 } from "@heroicons/react/24/outline";
@@ -188,9 +185,6 @@ function Sidebar({ navigate, path }) {
       <nav>
         {[
           [HomeIcon, "对局", "/"],
-          [PuzzlePieceIcon, "谜题", "/puzzle"],
-          [TvIcon, "观战", "/tv"],
-          [TrophyIcon, "排行榜", "/leaderboard"],
         ].map(([Icon, text, href]) => (
           <a
             key={href}
@@ -206,11 +200,6 @@ function Sidebar({ navigate, path }) {
           </a>
         ))}
       </nav>
-      <div className="account-links">
-        <p>保存对局，获得等级分和适合你水平的谜题。</p>
-        <button onClick={() => navigate("/signup")}>注册</button>
-        <button onClick={() => navigate("/login")}>登录</button>
-      </div>
       <nav className="sidebar-bottom">
         <a
           href="/rules"
@@ -250,9 +239,6 @@ function MobileReplayHeader({ navigate }) {
           <img src="/source-assets/favicon.svg" alt="" />
         </button>
         <div className="mobile-header-actions">
-          <button className="mobile-login" onClick={() => navigate("/login")}>
-            登录
-          </button>
           <div className="menu-anchor">
             <IconButton
               icon={Bars3Icon}
@@ -264,23 +250,13 @@ function MobileReplayHeader({ navigate }) {
               <div className="options-menu mobile-header-menu">
                 <button onClick={() => navigate("/rules")}>玩法</button>
                 <button onClick={() => navigate("/settings")}>设置</button>
-                <button onClick={() => navigate("/signup")}>注册</button>
               </div>
             )}
           </div>
         </div>
       </div>
       <nav>
-        {[
-          ["对局", "/"],
-          ["谜题", "/puzzle"],
-          ["观战", "/tv"],
-          ["排行榜", "/leaderboard"],
-        ].map(([label, href]) => (
-          <button key={href} onClick={() => navigate(href)}>
-            {label}
-          </button>
-        ))}
+        <button onClick={() => navigate("/")}>对局</button>
       </nav>
     </header>
   );
@@ -1382,11 +1358,7 @@ export default function App() {
       {isReplay && <MobileReplayHeader navigate={navigate} />}
       {path === "/" ? (
         <div className="with-sidebar">
-          <Lobby
-            navigate={navigate}
-            onImport={() => setModal("import")}
-            onRecords={() => setModal("records")}
-          />
+          <Lobby navigate={navigate} />
         </div>
       ) : isGame ? (
         <main
@@ -1777,20 +1749,10 @@ export default function App() {
             </>
           ) : (
             <>
-              <h1>
-                {{
-                  "/puzzle": "谜题",
-                  "/tv": "观战",
-                  "/leaderboard": "排行榜",
-                  "/login": "登录",
-                  "/signup": "注册",
-                  "/premium": "Premium",
-                }[path] || "页面未找到"}
-              </h1>
+              <h1>页面未找到</h1>
               <section className="text-card">
                 <p>
-                  此入口需要相应的平台服务。当前本地平台提供双人对战、AI
-                  接口和棋谱回放。
+                  请从首页选择本地对战或人机对战。
                 </p>
                 <button className="primary" onClick={() => navigate("/local")}>
                   本地对战

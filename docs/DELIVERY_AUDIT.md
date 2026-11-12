@@ -20,6 +20,18 @@
 
 本次检查截图已保存在 `docs/evidence/replica-desktop.png`、`replica-mobile.png`、`replica-replay.png` 和 `replica-clip.png`，实测棋谱为 `docs/evidence/replica-local-game.json`，测试摘要见 `docs/evidence/replica-verification.json`。参考站的早期观察与来源见 [公开源码核对](REPLICA_SOURCE_AUDIT.md) 和 [现场观察](REPLICA_LIVE_AUDIT.md)。
 
+## v0.1.2 首页精简验收
+
+2026-11-12 根据用户的 7 处页面标注调整本地产品界面。
+
+- 移除侧栏谜题、观战、排行榜，注册登录卡片，好友邀请、山丘之王、实时大厅、首页右侧全部卡片与链接，以及顶部 App 下载栏。
+- 同步移除手机回放导航中的注册登录和相同平台入口，清理对应占位页面与废弃样式。
+- 首页提供立即开玩、人机对战、本地对战与玩法入口。记录库通过对局或回放页的“更多”菜单访问，回放页提供载入棋谱。
+- 在 1146×727、1440×824、390×844、320×568 下检查主页，全部标注入口已移除，无横向溢出；本地走棋、人机入口、立即开玩、玩法、设置、手机导航和回放单步均通过，浏览器未报告脚本错误。
+- 本轮 17 项 Python、3 项前端、4 项 Sites 检查通过。界面实测使用生产构建的本地网页服务；当前浏览器工具的 file 协议限制阻止直接打开新版离线文件。单文件 HTML 已重新构建，并更新至用户正在打开的解压目录；包内 HTML 与构建逐字节核对。
+
+截图和检查数据见 `evidence/home-simplification/desktop.png`、`mobile.png` 和 `verification.json`。原站完整入口调查记录保存在网站拆解文档中。
+
 ## v0.1.1 界面复刻与功能验收
 
 2026-11-12 在生产构建与解压后的离线文件上完成以下检查。普通 Chrome 曾直接显示原站本地对战页。隔离浏览器直接访问原站返回 403，因此布局对照通过只读资源桥运行从公开 URL 取得的原站 2026-11-10 构建 HTML、CSS、JS。对照环境阻断外部账号和广告请求。资源 URL、字节数与 SHA-256 见 `evidence/fidelity-reference-manifest.json`。

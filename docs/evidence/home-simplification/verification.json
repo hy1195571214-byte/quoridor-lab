@@ -1,0 +1,77 @@
+{
+  "layouts": [
+    {
+      "width": 1146,
+      "height": 727,
+      "overflow": false,
+      "hero": {
+        "x": 249,
+        "y": 32,
+        "width": 880,
+        "height": 311,
+        "top": 32,
+        "right": 1129,
+        "bottom": 343,
+        "left": 249
+      },
+      "removedEntriesAbsent": true
+    },
+    {
+      "width": 1440,
+      "height": 824,
+      "overflow": false,
+      "hero": {
+        "x": 396,
+        "y": 32,
+        "width": 880,
+        "height": 311,
+        "top": 32,
+        "right": 1276,
+        "bottom": 343,
+        "left": 396
+      },
+      "removedEntriesAbsent": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "overflow": false,
+      "hero": {
+        "x": 14,
+        "y": 24,
+        "width": 362,
+        "height": 430.5,
+        "top": 24,
+        "right": 376,
+        "bottom": 454.5,
+        "left": 14
+      },
+      "removedEntriesAbsent": true
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "overflow": false,
+      "hero": {
+        "x": 14,
+        "y": 24,
+        "width": 292,
+        "height": 425.890625,
+        "top": 24,
+        "right": 306,
+        "bottom": 449.890625,
+        "left": 14
+      },
+      "removedEntriesAbsent": true
+    }
+  ],
+  "localMove": "e2，红方棋子",
+  "computer": true,
+  "quickStart": true,
+  "rules": true,
+  "settings": true,
+  "mobileNav": "对局",
+  "mobileMenu": "玩法\n设置",
+  "replayMove": "e2，红方棋子",
+  "errors": []
+}
