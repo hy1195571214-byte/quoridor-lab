@@ -1,5 +1,5 @@
 export const englishMessages = {
-  "Barricade Lab · 本地对战与回放": "Barricade Lab · Local play and replay",
+  "Quoridor Lab · 本地对战与回放": "Quoridor Lab · Local play and replay",
   语言: "Language",
   "AI 接口": "AI interfaces",
   "{count} 步": "{count} moves",

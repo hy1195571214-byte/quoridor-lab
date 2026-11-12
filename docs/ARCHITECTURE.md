@@ -12,7 +12,7 @@
 | 棋谱重放 | replayMoves 从开局重建 | 浏览器 replay 与 Python State.from_moves 严格验证 |
 | 电脑应手 | Socket.IO /ai | RemoteExpert |
 | 批量训练数据 | 未验证站点内部实现 | collect.py，JSONL + 检查点 |
-| 强化学习接口 | 未知 | BarricadeEnv |
+| 强化学习接口 | 未知 | QuoridorEnv |
 | HTTP | 第三方 API | FastAPI，仅本机监听 |
 | 视频 | Canvas / MediaRecorder / WASM 与服务端路径 | Canvas / MediaRecorder，优先原生 MP4，回退 WebM |
 
@@ -157,7 +157,7 @@ HTTP 游戏会话只存在于内存，服务重启后清空。采集器保存训
 
 ## 模块文件
 
-- `training/barricade_lab/rules.py`：规则、State、动作编号和观察。
+- `training/quoridor_lab/rules.py`：规则、State、动作编号和观察。
 - `opponents.py`：官网专家和本地策略。
 - `collect.py`：串行采集、样本落盘与恢复。
 - `env.py`：Gymnasium 单学习方环境。

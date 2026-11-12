@@ -30,7 +30,7 @@ const notices = await Promise.all(["react", "react-dom", "scheduler", "lz-string
 const noticeText = notices.join("\n\n--------------------\n\n");
 const html = `<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Barricade Lab · 本地对战与回放</title><link rel="icon" href="${icon}"><style>${css}</style></head>
+<title>Quoridor Lab · 本地对战与回放</title><link rel="icon" href="${icon}"><style>${css}</style></head>
 <body><div id="root"></div><script>${js}</script><script type="text/plain" id="third-party-notices">${noticeText.replaceAll(/<\/script/gi, "<\\/script")}</script></body></html>\n`;
 await mkdir(path.join(root, "offline"), { recursive: true });
 await writeFile(path.join(root, "offline/index.html"), html);

@@ -9,7 +9,7 @@ from .rules import ACTION_COUNT, Action, State
 from .opponents import LocalPolicy
 
 
-class BarricadeEnv(gym.Env):
+class QuoridorEnv(gym.Env):
     metadata = {"render_modes": ["ansi"]}
 
     def __init__(self, opponent=None, learner_player=1, max_plies=256, render_mode=None):
@@ -84,3 +84,7 @@ class BarricadeEnv(gym.Env):
 
     def close(self):
         self.opponent.close()
+
+
+# Compatibility with earlier notebooks and serialized environment references.
+BarricadeEnv = QuoridorEnv

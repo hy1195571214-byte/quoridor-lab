@@ -1,4 +1,4 @@
-# Barricade Lab
+# Quoridor Lab
 
 步步为营（Quoridor）项目的本地对战与回放网页、站点拆解，以及深度学习、强化学习与搜索策略接口。
 
@@ -6,7 +6,7 @@
 
 ## 网页启动
 
-不修改程序时，可直接打开 [离线 HTML](frontend/offline/index.html)。传给组员请使用 [发布包](https://github.com/hy1195571214-byte/quoridor-barricade-lab/releases/latest) 中的 ZIP，解压后双击 `offline/index.html`，无需安装开发环境。
+不修改程序时，可直接打开 [离线 HTML](frontend/offline/index.html)。传给组员请使用 [发布包](https://github.com/hy1195571214-byte/quoridor-lab/releases/latest) 中的 ZIP，解压后双击 `offline/index.html`，无需安装开发环境。
 
 ```bash
 cd frontend
@@ -58,7 +58,7 @@ cd training
 python3.11 -m venv .venv
 .venv/bin/python -m pip install '.[test]'
 .venv/bin/python -m unittest discover -s tests -v
-.venv/bin/python -m barricade_lab serve --port 8765
+.venv/bin/python -m quoridor_lab serve --port 8765
 ```
 
 启动后打开 [本机 API 文档](http://127.0.0.1:8765/docs)。服务只监听 `127.0.0.1`。
@@ -74,8 +74,8 @@ curl http://127.0.0.1:8765/expert/move \
 也可直接使用 Python：
 
 ```python
-from barricade_lab.rules import State
-from barricade_lab.opponents import RemoteExpert
+from quoridor_lab.rules import State
+from quoridor_lab.opponents import RemoteExpert
 
 expert = RemoteExpert(data_dir="data")
 try:
@@ -104,7 +104,7 @@ frontend/                     React 棋盘、对战、回放、分享、视频�
 docs/                         拆解、规范、架构、训练流程与验收
   evidence/                   来源清单、UI / 源码观察和实战记录
 training/
-  barricade_lab/              规则、专家适配器、采集、Gym 环境和 HTTP API
+  quoridor_lab/              规则、专家适配器、采集、Gym 环境和 HTTP API
   examples/                  模仿学习与带动作掩码的 REINFORCE 示例
   tests/                     无需访问官网的自动检查
   data/live-smoke/            两盘真实专家对局与逐步训练样本

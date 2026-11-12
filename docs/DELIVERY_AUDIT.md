@@ -20,6 +20,21 @@
 
 本次检查截图已保存在 `docs/evidence/replica-desktop.png`、`replica-mobile.png`、`replica-replay.png` 和 `replica-clip.png`，实测棋谱为 `docs/evidence/replica-local-game.json`，测试摘要见 `docs/evidence/replica-verification.json`。参考站的早期观察与来源见 [公开源码核对](REPLICA_SOURCE_AUDIT.md) 和 [现场观察](REPLICA_LIVE_AUDIT.md)。
 
+## v0.1.4 Quoridor Lab 全面更名
+
+2026-11-12 按用户要求将本地项目统一命名为 Quoridor Lab。
+
+- 更新首页、侧栏、电脑页、手机规则和设置页的标题、中文和英文文档标题，以及棋谱和视频下载文件名。
+- 源码目录及 GitHub 仓库更名为 `quoridor-lab`，发布 ZIP 和解压目录使用 `Quoridor-Lab`。仓库描述、当前使用文档和打包流程已同步更新。
+- 前端包及 Python 分发包名为 `quoridor-lab`，版本 0.1.4。Python 使用 `quoridor_lab` 和 `QuoridorEnv`，旧命名通过兼容入口调用同一实现。
+- 浏览器偏好及棋谱使用新的存储键，并兼容读取旧键。实测旧语言偏好恢复为 English，旧静音偏好恢复，旧棋谱能显示、恢复并写入新记录库，删除后刷新也不会重新出现。
+- 在 1146×727、390×844、320×568 下检查首页、电脑、规则、设置、回放共 15 个页面组合，页面标题及可见品牌已更新，无横向溢出；手机 CSS 生成的品牌文字也已核对。
+- 实测棋谱下载 `quoridor-lab-game.json`、视频下载 `quoridor-lab-replay.mp4`。视频含 720×1280 H.264 与 AAC 音轨，严格解码通过。
+- 19 项 Python、6 项前端、4 项 Sites 检查通过。新包已在独立目录安装，分发版本为 0.1.4，新旧 Python 导入及四个模块 CLI 入口通过。实际 API 文档标题为 Quoridor Lab Local Training API，返回 209 动作掩码，本轮专家网络请求为 0。
+- 发布包通过 CRC、逐文件 SHA-256 和解压副本字节检查；旧解压入口通过兼容链接指向新目录，方便已有页面刷新。直接 file 页面复测受工具限制，界面验证使用本地生产网页服务。
+
+证据位于 `evidence/quoridor-rename/`。参考站来源、真实专家数据的来源字段以及历史验收截图具有原始归属和时间含义。
+
 ## v0.1.3 中英文、品牌与路障颜色
 
 2026-11-12 完成用户追加的三项界面需求。
@@ -67,8 +82,8 @@
 
 几何检查覆盖列明的视口与组件，整体截图可能因字体和渲染环境有差别。实体 iOS/Safari、长棋谱在各浏览器的录制、原站账号/支付/匹配服务、训练后的模型棋力未在本轮验证。原站服务端流程未通过资源桥验证。
 
-新版入口见 [GitHub 最新发布](https://github.com/hy1195571214-byte/quoridor-barricade-lab/releases/latest)。
+新版入口见 [GitHub 最新发布](https://github.com/hy1195571214-byte/quoridor-lab/releases/latest)。
 
 ## 先前交付检查
 
-独立目录解压及浏览器禁网测试、逐文件哈希和敏感缓存排除已通过。源码已上传至私有仓库，发布包分发位置为 [v0.1.0](https://github.com/hy1195571214-byte/quoridor-barricade-lab/releases/tag/v0.1.0)。实体 iOS/Safari 与本轮原站截图对照仍属于未覆盖范围。
+独立目录解压及浏览器禁网测试、逐文件哈希和敏感缓存排除已通过。源码已上传至私有仓库，发布包分发位置为 [v0.1.0](https://github.com/hy1195571214-byte/quoridor-lab/releases/tag/v0.1.0)。实体 iOS/Safari 与本轮原站截图对照仍属于未覆盖范围。

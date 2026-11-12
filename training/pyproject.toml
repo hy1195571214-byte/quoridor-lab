@@ -3,9 +3,9 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "barricade-lab"
-version = "0.1.0"
-description = "Local Quoridor environment and Barricade expert data collector"
+name = "quoridor-lab"
+version = "0.1.4"
+description = "Quoridor Lab rules, local training API and reference expert adapter"
 requires-python = ">=3.11"
 dependencies = ["numpy>=1.24", "gymnasium>=1.0", "python-socketio[client]>=5.11,<6", "fastapi>=0.110", "uvicorn>=0.30"]
 
@@ -14,7 +14,8 @@ learning = ["torch>=2.2"]
 test = ["httpx>=0.27"]
 
 [project.scripts]
-barricade-lab = "barricade_lab.cli:main"
+quoridor-lab = "quoridor_lab.cli:main"
+barricade-lab = "quoridor_lab.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["barricade_lab*"]
+include = ["quoridor_lab*", "barricade_lab*"]

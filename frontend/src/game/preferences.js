@@ -3,7 +3,9 @@ import wallUrl from "../assets/wall.mp3";
 
 export function readPreference(key, fallback) {
   try {
-    const value = localStorage.getItem(`barricade-lab:${key}`);
+    const value =
+      localStorage.getItem(`quoridor-lab:${key}`) ??
+      localStorage.getItem(`barricade-lab:${key}`);
     return value === null ? fallback : JSON.parse(value);
   } catch {
     return fallback;
@@ -12,7 +14,7 @@ export function readPreference(key, fallback) {
 
 export function writePreference(key, value) {
   try {
-    localStorage.setItem(`barricade-lab:${key}`, JSON.stringify(value));
+    localStorage.setItem(`quoridor-lab:${key}`, JSON.stringify(value));
   } catch {
     /* Browsing remains usable when storage is unavailable. */
   }
@@ -23,11 +25,14 @@ const decodedByContext = new WeakMap();
 export function preloadGameSounds(context) {
   let promise = decodedByContext.get(context);
   if (!promise) {
-    promise = Promise.all([moveUrl, wallUrl].map(async (url) => {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`Sound request failed: ${response.status}`);
-      return context.decodeAudioData(await response.arrayBuffer());
-    })).catch((error) => {
+    promise = Promise.all(
+      [moveUrl, wallUrl].map(async (url) => {
+        const response = await fetch(url);
+        if (!response.ok)
+          throw new Error(`Sound request failed: ${response.status}`);
+        return context.decodeAudioData(await response.arrayBuffer());
+      }),
+    ).catch((error) => {
       decodedByContext.delete(context);
       throw error;
     });
@@ -52,7 +57,9 @@ export function playMoveSound(muted, isWall = false) {
     audioContext ??= new AudioContext();
     // Resume synchronously inside the user's gesture before awaiting decoding.
     audioContext.resume().catch(() => {});
-    playSoundInto(audioContext, audioContext.destination, isWall).catch(() => {});
+    playSoundInto(audioContext, audioContext.destination, isWall).catch(
+      () => {},
+    );
   } catch {
     /* Audio availability does not affect game state. */
   }

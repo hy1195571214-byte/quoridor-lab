@@ -1,6 +1,6 @@
 # 组员使用与开发指南
 
-这份指南面向收到项目压缩包的组员。项目提供本地双人棋盘、棋谱回放和以后接入 AI 的接口。它是独立实现，不是 Barricade 官方项目；账号、网络匹配等远程平台功能不在本次本地交付范围内。最终交付状态以 [交付验收矩阵](DELIVERY_AUDIT.md) 为准。
+这份指南面向收到 Quoridor Lab 压缩包的组员。项目提供本地双人棋盘、棋谱回放和以后接入 AI 的接口。它是独立实现，不是 Barricade 官方项目；账号、网络匹配等远程平台功能不在本次本地交付范围内。最终交付状态以 [交付验收矩阵](DELIVERY_AUDIT.md) 为准。
 
 ## 只想下棋：离线版
 
@@ -39,7 +39,7 @@ npm run dev -- --port 4173 --strictPort
 
 ## 本机服务与打包
 
-ZIP 已包含构建后的网页；从 GitHub 克隆源码则先运行 `npm ci` 和 `npm run build`。在项目根目录执行 `python3 scripts/serve_local.py`，可通过 `http://127.0.0.1:8000` 使用网页；该服务把 `/api` 转发到本机 8765 端口的 Python 后端，后端需要另外启动。使用 `python3 scripts/package_release.py` 创建交付压缩包，默认位于仓库外 `releases/Barricade-Local-Lab.zip`；加 `--build` 可在打包前重建。Windows 可使用 `python` 代替 `python3`，虚拟环境解释器路径为 `.venv\Scripts\python.exe`。验收范围见 [交付验收矩阵](DELIVERY_AUDIT.md)。
+ZIP 已包含构建后的网页；从 GitHub 克隆源码则先运行 `npm ci` 和 `npm run build`。在项目根目录执行 `python3 scripts/serve_local.py`，可通过 `http://127.0.0.1:8000` 使用网页；该服务把 `/api` 转发到本机 8765 端口的 Python 后端，后端需要另外启动。使用 `python3 scripts/package_release.py` 创建交付压缩包，默认位于仓库外 `releases/Quoridor-Lab.zip`；加 `--build` 可在打包前重建。Windows 可使用 `python` 代替 `python3`，虚拟环境解释器路径为 `.venv\Scripts\python.exe`。验收范围见 [交付验收矩阵](DELIVERY_AUDIT.md)。
 
 ## Python 后端和训练
 
@@ -50,7 +50,7 @@ cd training
 python3.11 -m venv .venv
 .venv/bin/python -m pip install '.[test]'
 .venv/bin/python -m unittest discover -s tests -v
-.venv/bin/python -m barricade_lab serve --port 8765
+.venv/bin/python -m quoridor_lab serve --port 8765
 ```
 
 服务默认仅监听本机，打开 `http://127.0.0.1:8765/docs` 查看接口。开发网页的 `/api` 请求由 Vite 转发到该服务。离线 HTML 的使用不等同于自动启动 Python 服务；要接真实模型，仍需按接口文档配置并运行对应服务。
@@ -67,3 +67,7 @@ python3.11 -m venv .venv
 - Python HTTP 游戏会话保存在服务内存中，服务重启会清空；它与 SQLite 记录库也是两回事。长期保留请使用明确的棋谱导出或记录接口。
 
 本项目的官网专家适配器属于可选联网功能，服务可能变更或限流；启动本地网页和本地服务不代表已调用官网，也不需要调用官网才能进行本地双人对战。
+
+## 更名后的入口
+
+项目与 GitHub 仓库使用 Quoridor Lab，源码目录为 `quoridor-lab`，分发文件为 `Quoridor-Lab.zip`，解压目录为 `Quoridor-Lab/`。棋谱下载名为 `quoridor-lab-game.json`，视频为 `quoridor-lab-replay.mp4` 或 `.webm`。Python 使用 `quoridor_lab`，环境类使用 `QuoridorEnv`。旧版训练导入、浏览器偏好和记录库具有兼容入口。

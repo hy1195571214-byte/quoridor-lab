@@ -46,6 +46,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python scripts/package_release.py --output releases/Barricade-Local-Lab.zip
+      - run: python scripts/package_release.py --output releases/Quoridor-Lab.zip
       # Distribution ZIPs are attached to GitHub Releases. Keep CI focused on
       # tests/build/package validation, without consuming Actions artifact quota.

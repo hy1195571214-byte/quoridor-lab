@@ -1,4 +1,4 @@
-# Barricade 本地专家采集与训练接口
+# Quoridor Lab 本地专家采集与训练接口
 
 本项目可以直接向 barricade.gg 的人机专家请求走法，在本地自动完成对局并保存训练数据。无需操控浏览器，不会操作你正在下的棋，也不会把采集局提交到官网的对局历史、排行榜或账号系统。
 
@@ -20,7 +20,7 @@
 
 ```bash
 cd training
-.venv/bin/python -m barricade_lab serve --port 8765
+.venv/bin/python -m quoridor_lab serve --port 8765
 ```
 
 接口只监听本机 `127.0.0.1`。打开 [交互式 API 文档](http://127.0.0.1:8765/docs)，可直接查看和调用接口。若已有服务占用 8765，可使用 `--port 8766`。
@@ -34,14 +34,14 @@ python3.11 -m venv .venv
 .venv/bin/python -m pip install '.[learning]'
 ```
 
-原始验证环境复用了已安装的 NumPy、Gymnasium、FastAPI 和 PyTorch；在其他机器上请按上面的安装命令准备依赖。源码修改后，项目目录内的 `python -m barricade_lab` 会直接使用新源码；从其他目录运行安装包时，请重新 `pip install .` 更新安装副本。
+原始验证环境复用了已安装的 NumPy、Gymnasium、FastAPI 和 PyTorch；在其他机器上请按上面的安装命令准备依赖。源码修改后，项目目录内的 `python -m quoridor_lab` 会直接使用新源码；从其他目录运行安装包时，请重新 `pip install .` 更新安装副本。
 
 ## 请求一次官网专家决策
 
 命令行：
 
 ```bash
-.venv/bin/python -m barricade_lab probe --moves e2
+.venv/bin/python -m quoridor_lab probe --moves e2
 ```
 
 HTTP：
@@ -57,8 +57,8 @@ curl http://127.0.0.1:8765/expert/move \
 Python：
 
 ```python
-from barricade_lab.rules import State
-from barricade_lab.opponents import RemoteExpert
+from quoridor_lab.rules import State
+from quoridor_lab.opponents import RemoteExpert
 
 teacher = RemoteExpert(difficulty="expert", data_dir="data")
 try:
@@ -74,13 +74,13 @@ finally:
 ## 自动批量对战采集
 
 ```bash
-.venv/bin/python -m barricade_lab collect \
+.venv/bin/python -m quoridor_lab collect \
   --games 20 --difficulty expert --expert-side alternate \
   --policy shortest --max-plies 256 --interval 1 \
   --output data/collection
 ```
 
-`--policy` 是与专家对抗的本地采集策略，可选 `shortest` 和 `random`。默认策略只沿最短路径走棋，不能代表一个强搜索 AI。更强的自定义策略可以直接接入 `BarricadeEnv.step()`；不同采集策略会产生不同分布的训练局面。
+`--policy` 是与专家对抗的本地采集策略，可选 `shortest` 和 `random`。默认策略只沿最短路径走棋，不能代表一个强搜索 AI。更强的自定义策略可以直接接入 `QuoridorEnv.step()`；不同采集策略会产生不同分布的训练局面。
 
 - `--expert-side alternate` 交换专家先后手，也可固定 `1` 或 `2`。
 - 所有官网调用串行执行，默认至少间隔 1 秒。同一输出目录一次运行一个采集进程。
@@ -117,10 +117,10 @@ last-error.json         最近一次中断原因（如有）
 ## 强化学习环境
 
 ```python
-from barricade_lab.env import BarricadeEnv
-from barricade_lab.opponents import RemoteExpert
+from quoridor_lab.env import QuoridorEnv
+from quoridor_lab.opponents import RemoteExpert
 
-env = BarricadeEnv(opponent=RemoteExpert(), learner_player=1, max_plies=256)
+env = QuoridorEnv(opponent=RemoteExpert(), learner_player=1, max_plies=256)
 try:
     obs, info = env.reset(seed=0)
     action = int(obs["action_mask"].nonzero()[0][0])  # 换成模型的 masked policy
@@ -171,3 +171,7 @@ HTTP 游戏会话在服务重启时清空；持久化训练数据由采集器负
 ```
 
 检查覆盖 209 个动作编解码、开局掩码、直跳/斜跳、接缝穿墙、重叠/交叉/封路、之前的 46 步专家实战、环境边界、缓存、限流错误、HTTP 行为及中断续采。实际远程对局与 HTTP 冒烟记录见 `data/live-smoke/` 和 `data/api-smoke.json`。
+
+## 项目名称与旧版兼容
+
+安装包名为 `quoridor-lab`，Python 入口为 `quoridor_lab`，Gymnasium 环境类为 `QuoridorEnv`，命令行提供 `quoridor-lab`。旧版 `barricade_lab` 导入、`BarricadeEnv` 和 `barricade-lab` 命令通过兼容入口调用同一实现。

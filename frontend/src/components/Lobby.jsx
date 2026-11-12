@@ -32,7 +32,7 @@ export default function Lobby({ navigate }) {
           <div className="lobby-hero-head">
             <div>
               <h1>
-                {t("玩")} <span>Barricade Lab</span>
+                {t("玩")} <span>Quoridor Lab</span>
               </h1>
               <p>
                 {t(

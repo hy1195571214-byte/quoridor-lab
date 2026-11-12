@@ -23,7 +23,7 @@ export function LanguageProvider({ children }) {
   useEffect(() => {
     writePreference("locale", locale);
     document.documentElement.lang = locale;
-    document.title = translate(locale, "Barricade Lab · 本地对战与回放");
+    document.title = translate(locale, "Quoridor Lab · 本地对战与回放");
   }, [locale]);
   const value = useMemo(() => ({ locale, setLocale, t }), [locale, t]);
   return (

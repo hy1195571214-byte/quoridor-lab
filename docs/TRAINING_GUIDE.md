@@ -32,12 +32,12 @@ python3.11 -m venv .venv
 ## 3. 采集新数据
 
 ```bash
-.venv/bin/python -m barricade_lab collect \
+.venv/bin/python -m quoridor_lab collect \
   --games 20 --difficulty expert --expert-side alternate \
   --policy shortest --seed 0 --interval 1 \
   --output data/expert-learning
 
-.venv/bin/python -m barricade_lab collect \
+.venv/bin/python -m quoridor_lab collect \
   --games 20 --difficulty expert --expert-side alternate \
   --policy random --seed 100 --interval 1 \
   --output data/expert-learning
@@ -90,7 +90,7 @@ python3.11 -m venv .venv
 .venv/bin/python - <<'PY'
 import torch
 from examples.train_imitation import network
-from barricade_lab.rules import State, Action
+from quoridor_lab.rules import State, Action
 
 model = network()
 checkpoint = torch.load('data/expert-policy-v1.pt', map_location='cpu', weights_only=True)
@@ -119,7 +119,7 @@ PY
 - 反复走动、自堵、过早耗墙等失败类型。
 - 模型版本、数据版本、随机种子和是否使用缓存。
 
-**当前没有封装好的模型评估 CLI。** `collect --policy shortest/random` 不能冒充模型评估。需要将第 6 步的模型决策接到 `BarricadeEnv.step()`，保存完整对局与结果；后续开发优先级见 [验收清单](VALIDATION.md)。
+**当前没有封装好的模型评估 CLI。** `collect --policy shortest/random` 不能冒充模型评估。需要将第 6 步的模型决策接到 `QuoridorEnv.step()`，保存完整对局与结果；后续开发优先级见 [验收清单](VALIDATION.md)。
 
 ## 8. 根据模型错误补标
 

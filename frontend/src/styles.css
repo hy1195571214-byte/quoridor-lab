@@ -1348,7 +1348,7 @@ textarea {
     padding: 28px 20px;
   }
   .content-page::before {
-    content: "Barricade";
+    content: "Quoridor Lab";
     display: block;
     font-size: 23px;
     font-weight: 700;

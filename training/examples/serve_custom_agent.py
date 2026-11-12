@@ -8,8 +8,8 @@ with local model inference or search and return Decision with a legal Action.
 import argparse
 import uvicorn
 
-from barricade_lab.api import create_app
-from barricade_lab.opponents import Decision, LocalPolicy, RemoteExpert
+from quoridor_lab.api import create_app
+from quoridor_lab.opponents import Decision, LocalPolicy, RemoteExpert
 
 
 class PlaceholderPolicy:

@@ -1,0 +1,9 @@
+{
+  "title": "Quoridor Lab Local Training API",
+  "version": "0.1.4",
+  "action_count": 209,
+  "expert_network_requests": 0,
+  "installed_distribution": "quoridor-lab",
+  "installed_version": "0.1.4",
+  "legacy_import_compatible": true
+}

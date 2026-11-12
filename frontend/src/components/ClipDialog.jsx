@@ -447,8 +447,8 @@ export default function ClipDialog({
           const a = document.createElement("a");
           a.href = url;
           a.download = mime.startsWith("video/mp4")
-            ? "barricade-replay.mp4"
-            : "barricade-replay.webm";
+            ? "quoridor-lab-replay.mp4"
+            : "quoridor-lab-replay.webm";
           a.click();
           setTimeout(() => URL.revokeObjectURL(url), 60000);
         } else if (!cancelled && mounted.current) {

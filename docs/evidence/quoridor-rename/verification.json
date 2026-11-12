@@ -1,0 +1,138 @@
+{
+  "migratedPreference": {
+    "lang": "en",
+    "savedLocale": "\"en\"",
+    "muted": "true"
+  },
+  "layouts": [
+    {
+      "width": 1146,
+      "height": 727,
+      "route": "/",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": null
+    },
+    {
+      "width": 1146,
+      "height": 727,
+      "route": "/computer",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": null
+    },
+    {
+      "width": 1146,
+      "height": 727,
+      "route": "/rules",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": "none"
+    },
+    {
+      "width": 1146,
+      "height": 727,
+      "route": "/settings",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": "none"
+    },
+    {
+      "width": 1146,
+      "height": 727,
+      "route": "/analysis?moves=KYJgNMAcYBbALEA",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": null
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "route": "/",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": null
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "route": "/computer",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": null
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "route": "/rules",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": "\"Quoridor Lab\""
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "route": "/settings",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": "\"Quoridor Lab\""
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "route": "/analysis?moves=KYJgNMAcYBbALEA",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": null
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "route": "/",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": null
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "route": "/computer",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": null
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "route": "/rules",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": "\"Quoridor Lab\""
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "route": "/settings",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": "\"Quoridor Lab\""
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "route": "/analysis?moves=KYJgNMAcYBbALEA",
+      "title": "Quoridor Lab · Local play and replay",
+      "overflow": false,
+      "mobileBrand": null
+    }
+  ],
+  "legacyRecordVisible": true,
+  "migratedRecordCount": 1,
+  "walls": 2,
+  "deletedStaysDeleted": true,
+  "jsonFilename": "quoridor-lab-game.json",
+  "videoFilename": "quoridor-lab-replay.mp4",
+  "chineseTitle": "Quoridor Lab · 本地对战与回放",
+  "chineseBrand": "Quoridor Lab",
+  "errors": []
+}

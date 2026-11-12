@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 import unittest
 
-from barricade_lab.rules import Action, State
+from quoridor_lab.rules import Action, State
 
 ROOT = Path(__file__).resolve().parents[2]
 

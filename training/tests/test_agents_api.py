@@ -2,9 +2,9 @@
 import tempfile
 import unittest
 from fastapi.testclient import TestClient
-from barricade_lab.api import create_app
-from barricade_lab.opponents import Decision, RemoteExpert
-from barricade_lab.rules import Action
+from quoridor_lab.api import create_app
+from quoridor_lab.opponents import Decision, RemoteExpert
+from quoridor_lab.rules import Action
 
 
 class FixedPolicy:

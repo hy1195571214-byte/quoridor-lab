@@ -8,11 +8,11 @@ import numpy as np
 from gymnasium.utils.passive_env_checker import env_reset_passive_checker, env_step_passive_checker
 from fastapi.testclient import TestClient
 
-from barricade_lab.rules import Action, State
-from barricade_lab.opponents import RemoteExpert, RemoteError, LocalPolicy
-from barricade_lab.env import BarricadeEnv
-from barricade_lab.collect import collect
-from barricade_lab.api import create_app
+from quoridor_lab.rules import Action, State
+from quoridor_lab.opponents import RemoteExpert, RemoteError, LocalPolicy
+from quoridor_lab.env import QuoridorEnv
+from quoridor_lab.collect import collect
+from quoridor_lab.api import create_app
 
 REAL_GAME = "e2,e8,e3,e7,e4,e6,e5,e4,hd3,hd5,f5,hf5,ve3,hh5,vc4,vb6,f4,vf4,f3,hf2,g3,vg2,g4,vb8,g5,e5,h5,f5,h4,f4,h3,f3,h2,g3,h1,g4,hg1,h4,vh1,i4,g1,i3,f1,i2,e1,i1".split(",")
 
@@ -70,7 +70,7 @@ class RuleTests(unittest.TestCase):
         self.assertEqual(s.history, tuple(REAL_GAME))
 
     def test_environment_contract(self):
-        env = BarricadeEnv(LocalPolicy("shortest"), max_plies=32)
+        env = QuoridorEnv(LocalPolicy("shortest"), max_plies=32)
         # The generic checker samples unmasked illegal actions; this environment
         # intentionally rejects those instead of silently substituting a move.
         obs, _ = env_reset_passive_checker(env, seed=4)

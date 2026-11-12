@@ -67,7 +67,8 @@ const strategyNames = {
   rl: "强化学习",
   search: "搜索型 AI",
 };
-const recordsKey = "barricade.saved-records.v1";
+const recordsKey = "quoridor.saved-records.v1";
+const legacyRecordsKey = "barricade.saved-records.v1";
 function currentRoute() {
   return location.protocol === "file:"
     ? location.hash.slice(1) || "/"
@@ -88,7 +89,11 @@ function shareUrl(route) {
 }
 function readRecords() {
   try {
-    const list = JSON.parse(localStorage.getItem(recordsKey) || "[]");
+    const list = JSON.parse(
+      localStorage.getItem(recordsKey) ??
+        localStorage.getItem(legacyRecordsKey) ??
+        "[]",
+    );
     return Array.isArray(list)
       ? list.flatMap((item) => {
           try {
@@ -201,7 +206,7 @@ function Sidebar({ navigate, path }) {
         }}
       >
         <img src="/source-assets/favicon.svg" alt="" />
-        <strong>Barricade Lab</strong>
+        <strong>Quoridor Lab</strong>
       </a>
       <nav>
         {[[HomeIcon, t("对局"), "/"]].map(([Icon, text, href]) => (
@@ -1034,7 +1039,7 @@ export default function App() {
     );
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "barricade-game.json";
+    anchor.download = "quoridor-lab-game.json";
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -1656,7 +1661,7 @@ export default function App() {
               }}
             >
               <img src="/source-assets/favicon.svg" alt="" />
-              Barricade Lab
+              Quoridor Lab
             </a>
             <div className="computer-header-actions">
               <LanguageSelector />

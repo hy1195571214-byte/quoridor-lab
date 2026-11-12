@@ -8,7 +8,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SKIP = {".git", ".venv", "node_modules", "__pycache__", ".playwright-cli", "output", "releases", "pending"}
+SKIP = {".git", ".venv", "node_modules", "__pycache__", ".playwright-cli", "output", "releases", "pending", "build"}
 
 
 def allowed(path):
@@ -28,7 +28,7 @@ def package(output):
     files = sorted(p for p in ROOT.rglob("*") if p.is_file() and allowed(p))
     manifest = {"generated_at": datetime.now(timezone.utc).isoformat(), "files": {}}
     output.parent.mkdir(parents=True, exist_ok=True)
-    prefix = "Barricade-Local-Lab/"
+    prefix = "Quoridor-Lab/"
     with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
         for file in files:
             name = file.relative_to(ROOT).as_posix()
@@ -48,7 +48,7 @@ def package(output):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=ROOT.parent / "releases/Barricade-Local-Lab.zip")
+    parser.add_argument("--output", type=Path, default=ROOT.parent / "releases/Quoridor-Lab.zip")
     parser.add_argument("--build", action="store_true", help="Rebuild frontend before packaging (requires npm ci)")
     args = parser.parse_args()
     if args.build:

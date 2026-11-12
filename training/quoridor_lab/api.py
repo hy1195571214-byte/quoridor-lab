@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .rules import Action, State
-from .env import BarricadeEnv
+from .env import QuoridorEnv
 from .opponents import RemoteExpert, LocalPolicy, RemoteError
 from .records import RecordStore
 
@@ -33,7 +33,7 @@ class Step(BaseModel):
 
 @dataclass
 class Session:
-    env: BarricadeEnv
+    env: QuoridorEnv
     lock: threading.RLock = field(default_factory=threading.RLock)
 
 
@@ -53,7 +53,7 @@ def create_app(remote=None, agents=None, record_dir=None):
         yield
         remote.close()
 
-    app = FastAPI(title="Barricade Local Training API", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="Quoridor Lab Local Training API", version="0.1.4", lifespan=lifespan)
     # Offline file:// pages have the Origin "null"; loopback web dev servers
     # may run on any port. The server CLI binds only to 127.0.0.1.
     app.add_middleware(CORSMiddleware, allow_origins=["null"],
@@ -176,7 +176,7 @@ def create_app(remote=None, agents=None, record_dir=None):
     def new_game(config: NewGame):
         if config.opponent not in {"remote", "shortest", "random"}:
             raise HTTPException(400, "opponent must be remote, shortest or random")
-        env = BarricadeEnv(remote if config.opponent == "remote" else LocalPolicy(config.opponent, config.seed),
+        env = QuoridorEnv(remote if config.opponent == "remote" else LocalPolicy(config.opponent, config.seed),
                            config.learner_player, config.max_plies)
         obs, info = env.reset(seed=config.seed)
         game_id, session = uuid.uuid4().hex, Session(env)

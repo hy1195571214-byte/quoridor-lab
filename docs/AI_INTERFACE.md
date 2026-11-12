@@ -27,7 +27,7 @@ agentRegistry.register('my-model', httpAgent('http://127.0.0.1:8765/agents/my-mo
 ```sh
 python3.11 -m venv training/.venv
 training/.venv/bin/python -m pip install './training[test]'
-PYTHONPATH=training training/.venv/bin/python -m barricade_lab serve --port 8765
+PYTHONPATH=training training/.venv/bin/python -m quoridor_lab serve --port 8765
 PYTHONPATH=training training/.venv/bin/python -m unittest discover -s training/tests -v
 ```
 

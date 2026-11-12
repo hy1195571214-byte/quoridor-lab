@@ -1,4 +1,4 @@
-// 9×9 Barricade rules, aligned with training/barricade_lab/rules.py.
+// 9×9 Quoridor rules, aligned with training/quoridor_lab/rules.py.
 export const ACTION_COUNT = 209;
 
 export function initialState() {

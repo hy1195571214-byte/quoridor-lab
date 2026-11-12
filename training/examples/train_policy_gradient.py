@@ -6,8 +6,8 @@ from pathlib import Path
 import torch
 from torch.distributions import Categorical
 
-from barricade_lab.env import BarricadeEnv
-from barricade_lab.opponents import LocalPolicy, RemoteExpert
+from quoridor_lab.env import QuoridorEnv
+from quoridor_lab.opponents import LocalPolicy, RemoteExpert
 from train_imitation import network
 
 
@@ -26,7 +26,7 @@ def main():
         model.load_state_dict(torch.load(args.warm_start, weights_only=True)["state_dict"])
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     opponent = RemoteExpert() if args.remote else LocalPolicy("shortest", args.seed)
-    env = BarricadeEnv(opponent=opponent, max_plies=args.max_plies)
+    env = QuoridorEnv(opponent=opponent, max_plies=args.max_plies)
     metrics = []
     try:
         for episode in range(args.episodes):
