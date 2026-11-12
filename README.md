@@ -24,6 +24,21 @@ npm run dev -- --port 4173 --strictPort
 - 当前可运行的对手是简单基线，DL / RL / 搜索槽需要接入自己的策略；不将难度标签当成已训练模型。详见 [AI 接口](docs/AI_INTERFACE.md)。
 - 首页按本地项目需求精简为人机与本地对战，参考站全部入口的调查记录见网站拆解文档。
 
+## 组员部署
+
+仓库已公开，组员可直接 Fork 或克隆。
+
+```sh
+git clone https://github.com/hy1195571214-byte/quoridor-lab.git
+cd quoridor-lab/frontend
+npm ci
+npm run build
+```
+
+在 Vercel 中导入自己 Fork 的仓库，Root Directory 选择 `frontend`，使用 Node.js 22。仓库中的 `frontend/vercel.json` 已配置构建命令 `npm run build`、输出目录 `dist/client` 及应用路由回退，直接打开对战和回放链接可进入网页。
+
+本地双人、基线人机、回放和视频导出由浏览器运行。Python 训练、模型与 SQLite 记录服务按下方步骤在本机启动。云端模型接入需要配置 HTTPS 服务地址及允许网页域名的跨域设置。
+
 ## 语言与路障颜色
 
 界面支持简体中文和 English，可从侧栏、设置或对局的“更多”菜单切换，浏览器会记住选择；手机首页和回放顶部也提供语言选择。路障按放置者显示红色或蓝色，深色、浅色棋盘及回放均显示归属颜色。

@@ -10,7 +10,7 @@
     "build:offline": "node scripts/build-offline.mjs",
     "preview": "vite preview",
     "test:sites": "node --test tests/sites-worker.test.mjs",
-    "test": "node --test tests/record.test.mjs tests/agents.mjs tests/i18n.test.mjs"
+    "test": "node --test tests/record.test.mjs tests/agents.mjs tests/i18n.test.mjs tests/deployment.test.mjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

@@ -41,6 +41,12 @@ npm run dev -- --port 4173 --strictPort
 
 ZIP 已包含构建后的网页；从 GitHub 克隆源码则先运行 `npm ci` 和 `npm run build`。在项目根目录执行 `python3 scripts/serve_local.py`，可通过 `http://127.0.0.1:8000` 使用网页；该服务把 `/api` 转发到本机 8765 端口的 Python 后端，后端需要另外启动。使用 `python3 scripts/package_release.py` 创建交付压缩包，默认位于仓库外 `releases/Quoridor-Lab.zip`；加 `--build` 可在打包前重建。Windows 可使用 `python` 代替 `python3`，虚拟环境解释器路径为 `.venv\Scripts\python.exe`。验收范围见 [交付验收矩阵](DELIVERY_AUDIT.md)。
 
+## 部署公开网页
+
+组员可从公开的 GitHub 仓库 Fork 到自己的账号，再在 Vercel 导入该仓库。Root Directory 设为 `frontend`，使用 Node.js 22。仓库内的 `vercel.json` 配置安装命令 `npm ci`、构建命令 `npm run build`、输出目录 `dist/client` 及六个应用路径的回退规则。
+
+部署后，可通过公开网址进入本地双人、基线人机和回放。Python 训练服务与模型服务按下一节在本机运行；需要云端模型时，配置 HTTPS 服务地址和对应跨域设置。
+
 ## Python 后端和训练
 
 在项目目录执行：
