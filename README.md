@@ -52,6 +52,7 @@ npm run build
 
 ## 文档入口
 
+- [Reference、论文原文与无公式通俗讲解](references/README.md)
 - [组员使用、传输与开发指南](docs/DELIVERY_GUIDE.md)
 - [本次交付验收矩阵](docs/DELIVERY_AUDIT.md)
 

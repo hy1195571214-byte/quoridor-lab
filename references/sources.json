@@ -1,0 +1,84 @@
+{
+  "prepared_on": "2026-11-13",
+  "project_state_commit": "49a23f86474e5fd8d802e3362e0cdb7493b960aa",
+  "source_description": "Original PDFs supplied in the local Group Project materials; copied unchanged.",
+  "papers": [
+    {
+      "id": "P1",
+      "original_filename": "Simple statistical gradient-following algorithms for connectionist reinforcement learning.pdf",
+      "stored_path": "papers/01_REINFORCE_1992.pdf",
+      "source_url": "https://doi.org/10.1007/BF00992696",
+      "publication": "Machine Learning, 1992",
+      "bundled_version": "Published article",
+      "pages": 28,
+      "bytes": 1573051,
+      "sha256": "f033dd17e83c246e1ba908b01772a8dc79df51c6451ced1eb5292edc833ee4d3"
+    },
+    {
+      "id": "P2",
+      "original_filename": "Proximal Policy Optimization Algorithms.pdf",
+      "stored_path": "papers/02_PPO_2017.pdf",
+      "source_url": "https://arxiv.org/abs/1707.06347",
+      "publication": "arXiv, 2017",
+      "bundled_version": "arXiv:1707.06347v2",
+      "pages": 12,
+      "bytes": 2926267,
+      "sha256": "7378511297b63ff8977d18137aac03be7aff7648378aaa7b937ece7bc468206e"
+    },
+    {
+      "id": "P3",
+      "original_filename": "A Closer Look at Invalid Action Masking in Policy Gradient Algorithms.pdf",
+      "stored_path": "papers/03_ACTION_MASKING.pdf",
+      "source_url": "https://arxiv.org/abs/2006.14171",
+      "publication": "arXiv, first posted 2020",
+      "bundled_version": "arXiv:2006.14171v3, 2022-05-31",
+      "pages": 10,
+      "bytes": 1013469,
+      "sha256": "3306f4e1b0b85ac6c4955e764bb5e7a16323bed973bc124e69493d158fc6f4d2"
+    },
+    {
+      "id": "P4",
+      "original_filename": "Empirical Design in Reinforcement Learning.pdf",
+      "stored_path": "papers/04_EMPIRICAL_DESIGN_2024.pdf",
+      "source_url": "https://jmlr.org/papers/volume25/23-0183/23-0183.pdf",
+      "publication": "JMLR, 2024",
+      "bundled_version": "Published article",
+      "pages": 63,
+      "bytes": 2765764,
+      "sha256": "ba59db52e20834b7b33b0ada8bf6a60f228b2084a551cdd737bc4fa5240f6bdc"
+    },
+    {
+      "id": "P5",
+      "original_filename": "Curriculum Learning for Reinforcement Learning Domains - A Framework and Survey.pdf",
+      "stored_path": "papers/05_CURRICULUM_LEARNING_2020.pdf",
+      "source_url": "https://jmlr.org/papers/volume21/20-212/20-212.pdf",
+      "publication": "JMLR, 2020",
+      "bundled_version": "Published article",
+      "pages": 50,
+      "bytes": 1423408,
+      "sha256": "4a38716c2db85e99bc7827c6b61515c3d6c331a044e3197478782cd1ed416e37"
+    },
+    {
+      "id": "P6",
+      "original_filename": "Deep Reinforcement Learning that Matters.pdf",
+      "stored_path": "papers/06_DEEP_RL_THAT_MATTERS.pdf",
+      "source_url": "https://arxiv.org/abs/1709.06560",
+      "publication": "AAAI, 2018",
+      "bundled_version": "arXiv:1709.06560v3, 2019-01-30",
+      "pages": 26,
+      "bytes": 9471288,
+      "sha256": "0fc34bc1fb56746be58c2a4aa3d65b4b6fd7c732886edff368898ea00273e917"
+    },
+    {
+      "id": "P7",
+      "original_filename": "Implementation Matters in Deep Policy Gradients - A Case Study on PPO and TRPO.pdf",
+      "stored_path": "papers/07_IMPLEMENTATION_MATTERS_2020.pdf",
+      "source_url": "https://arxiv.org/abs/2005.12729",
+      "publication": "ICLR, 2020",
+      "bundled_version": "arXiv:2005.12729v1",
+      "pages": 14,
+      "bytes": 679227,
+      "sha256": "4be9bdaa4684db99ffae745fb038e24f0693c281b28fcb242e00dc4745369874"
+    }
+  ]
+}
