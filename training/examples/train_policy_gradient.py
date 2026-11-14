@@ -17,7 +17,10 @@ def main():
     p.add_argument("--remote", action="store_true")
     p.add_argument("--warm-start", help="Optional checkpoint produced by train_imitation.py")
     p.add_argument("--output", default="data/reinforce.pt")
-    p.add_argument("--max-plies", type=int, default=128)
+    p.add_argument(
+        "--max-plies", type=int, default=256,
+        help="Maximum total single-player actions per game (default: 256)",
+    )
     p.add_argument("--seed", type=int, default=0)
     args = p.parse_args()
     torch.manual_seed(args.seed)
