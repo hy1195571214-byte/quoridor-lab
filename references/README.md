@@ -4,6 +4,8 @@
 
 ## 从哪里开始阅读
 
+**两阶段训练的主要参考是 Silver 等（2016）的 AlphaGo 论文（P8）。** 小组据此决定先用监督式模仿学习预训练策略网络，再沿用该网络的权重做强化学习。五档示范的学习顺序由 Quoridor 实验检验。[AlphaGo 研读笔记](summaries/08_ALPHAGO_2016.md)
+
 先阅读基础概念，理解策略、回报、价值和策略梯度。接着阅读 REINFORCE、PPO 与行动屏蔽的概括，再根据实验流程安排训练和测试。
 
 - [基础概念与 PPO 通俗解释](CONCEPTS.md)
@@ -23,6 +25,7 @@
 | P5 | Curriculum Learning for Reinforcement Learning Domains — A Framework and Survey，Narvekar 等，2020 | 安排任务难度、训练对手和课程顺序 | [通俗概括](summaries/05_CURRICULUM_LEARNING.md) | [PDF](papers/05_CURRICULUM_LEARNING_2020.pdf) |
 | P6 | Deep Reinforcement Learning that Matters，Henderson 等，AAAI 2018 | 理解训练随机性、结果波动与复现 | [通俗概括](summaries/06_RELIABLE_EXPERIMENTS.md) | [PDF](papers/06_DEEP_RL_THAT_MATTERS.pdf) |
 | P7 | Implementation Matters in Deep Policy Gradients — A Case Study on PPO and TRPO，Engstrom 等，ICLR 2020 | 分析网络、优化器等实现细节的影响 | [通俗概括](summaries/07_IMPLEMENTATION_MATTERS.md) | [PDF](papers/07_IMPLEMENTATION_MATTERS_2020.pdf) |
+| P8 | Mastering the game of Go with deep neural networks and tree search，Silver 等，Nature 2016 | 决定先监督式模仿预训练、再强化学习微调的主要依据 | [详细研读](summaries/08_ALPHAGO_2016.md) | [DeepMind 官方 PDF](https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf) |
 
 P3 的本地原文为 2022 年的 arXiv v3，P6 的本地原文为 2019 年的 arXiv v3。完整作者、出处、版本和文件校验信息见文献与来源记录。
 
@@ -36,7 +39,7 @@ P3 的本地原文为 2022 年的 arXiv v3，P6 的本地原文为 2019 年的 a
 | 合法行动与胜负判定 | [Python 规则](../training/quoridor_lab/rules.py) | 所有对手、训练和评估共用的规则基础 |
 | 观察、行动与奖励 | [Gymnasium 环境](../training/quoridor_lab/env.py) | 训练程序与游戏交互的接口 |
 | masked REINFORCE | [现有训练示例](../training/examples/train_policy_gradient.py) | 已有的策略梯度基线，对应 P1、P3 |
-| 专家行为学习 | [模仿学习示例](../training/examples/train_imitation.py) | 用已记录的专家动作训练策略，可作为初始化实验 |
+| 先模仿预训练，再强化学习 | P8 · [模仿学习](../training/examples/train_imitation.py) · [REINFORCE](../training/examples/train_policy_gradient.py) | 先学习示范走法，再通过 `--warm-start` 继承策略权重并从对战胜负学习 |
 | PPO / MaskablePPO | P2、P3 与选定框架版本文档 | 后续算法候选，需完成适配与评估 |
 | 课程学习与历史对手 | P5 | 后续训练分布设计候选 |
 | 实验比较与可靠性 | P4、P6、P7 | 约束预算、种子、日志、模型选择和结论 |

@@ -80,5 +80,18 @@
       "bytes": 679227,
       "sha256": "4be9bdaa4684db99ffae745fb038e24f0693c281b28fcb242e00dc4745369874"
     }
+  ],
+  "external_papers": [
+    {
+      "id": "P8",
+      "source_url": "https://doi.org/10.1038/nature16961",
+      "pdf_url": "https://storage.googleapis.com/deepmind-media/alphago/AlphaGoNaturePaper.pdf",
+      "publication": "Nature 529, 484–489, 2016",
+      "version": "Published article with Methods and Extended Data, hosted by Google DeepMind",
+      "project_role": "Primary reference for supervised policy pretraining followed by reinforcement learning from the pretrained weights",
+      "pages": 20,
+      "bytes": 2682222,
+      "sha256": "9c9184385a3d37b4f4e9d9715270986c43172747b1d08f29093128c1ef878b60"
+    }
   ]
 }
