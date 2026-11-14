@@ -49,6 +49,8 @@ ZIP 已包含构建后的网页；从 GitHub 克隆源码则先运行 `npm ci` �
 
 ## Python 后端和训练
 
+需要采集示范时，可以在 [本地采集 Dashboard](COLLECTION_DASHBOARD.md) 分别选择红蓝难度、设置同时运行盘数、下载棋谱和打开本地回放。
+
 在项目目录执行：
 
 ```sh

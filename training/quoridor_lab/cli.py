@@ -26,12 +26,20 @@ def main():
     p.add_argument("--policy", choices=["shortest", "random"], default="shortest")
     p.add_argument("--opponent", choices=["remote", "shortest", "random"], default="remote")
     p.add_argument("--expert-side", choices=["1", "2", "alternate"], default="alternate")
+    p.add_argument("--red-difficulty", choices=sorted(RemoteExpert.difficulties))
+    p.add_argument("--blue-difficulty", choices=sorted(RemoteExpert.difficulties))
+    p.add_argument("--opening", default="", help="Comma-separated legal opening moves")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--max-plies", type=int, default=256)
     p.add_argument("--resume", action="store_true")
     p = sub.choices["serve"]
     p.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
+    remote_sides = None
+    if args.command == "collect" and (args.red_difficulty or args.blue_difficulty):
+        if not (args.red_difficulty and args.blue_difficulty and args.opponent == "remote"):
+            parser.error("Dual remote play requires both --red-difficulty and --blue-difficulty")
+        remote_sides = (args.red_difficulty, args.blue_difficulty)
     remote = RemoteExpert(difficulty=args.difficulty, data_dir=args.data_dir,
                           interval=args.interval, timeout=args.timeout,
                           proxy_env=args.proxy_env, cache=not args.no_cache)
@@ -43,7 +51,8 @@ def main():
             opponent = remote if args.opponent == "remote" else LocalPolicy(args.opponent, args.seed)
             result = collect(opponent, output=args.output, games=args.games, policy=args.policy,
                              seed=args.seed, expert_side=args.expert_side,
-                             max_plies=args.max_plies, resume=args.resume)
+                             max_plies=args.max_plies, resume=args.resume, remote_sides=remote_sides,
+                             opening=args.opening.split(",") if args.opening else ())
             summary = {k: v for k, v in result.items() if k != "episodes"}
             print(json.dumps(summary, ensure_ascii=False))
             if result["error"]:

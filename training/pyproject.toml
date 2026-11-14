@@ -19,3 +19,6 @@ barricade-lab = "quoridor_lab.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["quoridor_lab*", "barricade_lab*"]
+
+[tool.setuptools.package-data]
+quoridor_lab = ["dashboard.html"]

@@ -73,6 +73,34 @@ finally:
 
 ## 自动批量对战采集
 
+### 本地采集面板
+
+完整启动步骤、回放、并发上限和无缓存实测见 [本地采集 Dashboard 指南](../docs/COLLECTION_DASHBOARD.md)。
+
+在 `training/` 目录启动 `.\.venv\Scripts\python.exe -m quoridor_lab.dashboard`，
+打开 [本地面板](http://127.0.0.1:8770/) 后选择红蓝各自的 Barricade 难度和盘数。
+“同时运行盘数”设置可推进的棋局数。各局轮流提交走法，共用一条连接和同一限速，
+面板分别显示每盘的进度和回放。远端应手最多一个请求在途。
+可指定固定合法开局；开局进入棋谱，后续远程应手进入逐步示范数据。
+面板显示进度、终局、重复棋谱、重复局面、重复示范和缓存数。
+点击“打开回放”可在 Quoridor Lab 的原有回放页查看棋谱。
+启动网页服务的说明见 [组员使用指南](../docs/DELIVERY_GUIDE.md)；若网页端口不同，
+启动面板时用 `--replay-base` 指定地址。
+
+每批保存在 `data/collection/dashboard/<运行编号>/`。面板可下载批量棋谱与示范的
+JSONL 文件，单盘也会保存成独立 JSON。远程请求失败时保留进度，可检查错误后恢复。
+两边共用一条远程连接和同一请求间隔。相同难度与完整历史会复用已观测的应手。
+勾选“每步重新请求”可关闭本批缓存，用于观察同一配置的新应手是否重复。
+比较数据多样性时，面板分别统计完整走法序列、棋子和墙等局面信息，以及加上档位和走法后的示范。
+
+也可以用命令行采集双远端对弈：
+
+```sh
+python -m quoridor_lab collect --red-difficulty expert --blue-difficulty hard --games 2 --output data/collection/expert-hard
+```
+
+### 与本地基线对战
+
 ```bash
 .venv/bin/python -m quoridor_lab collect \
   --games 20 --difficulty expert --expert-side alternate \

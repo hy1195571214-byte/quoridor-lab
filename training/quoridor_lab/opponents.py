@@ -122,11 +122,14 @@ class RemoteExpert:
                               kind="connection", retryable=True) from exc
         self.client = client
 
-    def choose(self, state: State) -> Decision:
+    def choose(self, state: State, *, difficulty=None) -> Decision:
+        difficulty = self.difficulty if difficulty is None else difficulty
+        if difficulty not in self.difficulties:
+            raise ValueError("Unknown difficulty")
         if state.winner is not None:
             raise ValueError("Cannot query the expert after the game has ended")
         with self._lock:
-            key = hashlib.sha256(json.dumps([self.base_url, self.difficulty,
+            key = hashlib.sha256(json.dumps([self.base_url, difficulty,
                                              list(state.history)]).encode()).hexdigest()
             if self.use_cache and key in self.cache:
                 item = self.cache[key]
@@ -134,8 +137,8 @@ class RemoteExpert:
                 if state.error(action):
                     raise RemoteError("Cached expert move is illegal", kind="illegal_response")
                 self.cache_hits += 1
-                return Decision(action, "barricade:" + self.difficulty, cached=True,
-                                metadata={"difficulty": self.difficulty,
+                return Decision(action, "barricade:" + difficulty, cached=True,
+                                metadata={"difficulty": difficulty,
                                           "observed_at": item["observed_at"],
                                           "provider_response": item["response"]})
             self._connect()
@@ -146,7 +149,7 @@ class RemoteExpert:
             start = time.monotonic()
             try:
                 response = self.client.call("ai:get_move", {
-                    "moves": ",".join(state.history), "difficulty": self.difficulty,
+                    "moves": ",".join(state.history), "difficulty": difficulty,
                     "correlationId": correlation, "deviceId": self.device_id,
                 }, namespace="/ai", timeout=self.timeout)
             except Exception as exc:
@@ -172,13 +175,13 @@ class RemoteExpert:
             observed = datetime.now(timezone.utc).isoformat()
             item = {"key": key, "move": action.notation, "response": response,
                     "observed_at": observed, "history": list(state.history),
-                    "difficulty": self.difficulty, "latency_seconds": latency}
+                    "difficulty": difficulty, "latency_seconds": latency}
             if self.use_cache:
                 with self.cache_path.open("a") as file:
                     file.write(json.dumps(item, ensure_ascii=False) + "\n")
                 self.cache[key] = item
-            return Decision(action, "barricade:" + self.difficulty, latency, False, {
-                "difficulty": self.difficulty, "observed_at": observed,
+            return Decision(action, "barricade:" + difficulty, latency, False, {
+                "difficulty": difficulty, "observed_at": observed,
                 "provider_response": response,
             })
 

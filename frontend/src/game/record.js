@@ -5,6 +5,7 @@ const MAX_INPUT = 128_000;
 const MAX_MOVES = 1000;
 const MAX_VARIATIONS = 100;
 const INITIAL = { pawns: ["e1", "e9"], walls: [10, 10], turn: 1 };
+const AI_DIFFICULTIES = new Set(["easy", "medium", "hard", "expert", "master"]);
 const fail = (message) => {
   throw new Error(message);
 };
@@ -79,6 +80,10 @@ export function parseRecord(input) {
       fail("Goal result contradicts final position");
     result = { winner: result.winner, reason: result.reason };
   }
+  const ai = input.ai;
+  if (ai != null && (!Array.isArray(ai) || ai.length !== 2 || !ai.every(level => AI_DIFFICULTIES.has(level)))) {
+    fail("Invalid Barricade AI difficulties");
+  }
   return {
     schema_version: 1,
     rules_version: "classic-9x9-v1",
@@ -86,6 +91,7 @@ export function parseRecord(input) {
     moves,
     result,
     variations: normalizedVariations,
+    ...(ai && { ai: [...ai] }),
   };
 }
 
@@ -115,6 +121,7 @@ export function encodeShare(input) {
         .join(";"),
     );
   if (record.result) params.set("result", JSON.stringify(record.result));
+  if (record.ai) params.set("ai", record.ai.join(","));
   return `/analysis${params.size ? `?${params}` : ""}`;
 }
 
@@ -152,7 +159,8 @@ export function decodeShare(search = "") {
       fail("Invalid result");
     }
   }
-  return createRecord(moves, result, variations);
+  const ai = params.has("ai") ? params.get("ai").split(",") : null;
+  return parseRecord({ moves, result, variations, ai });
 }
 
 export function exportRecord(record) {

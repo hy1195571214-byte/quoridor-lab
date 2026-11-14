@@ -569,6 +569,12 @@ export default function App() {
     : { 1: t("玩家 1"), 2: t("玩家 2") };
   const topPlayer = flipped ? 1 : 2;
   const bottomPlayer = 3 - topPlayer;
+  const replayName = (player) => {
+    const level = record.ai?.[player - 1];
+    if (!level) return t("玩家 {player}", { player });
+    const side = t(player === 1 ? "红方" : "蓝方");
+    return `${side} · Barricade ${level[0].toUpperCase()}${level.slice(1)}`;
+  };
 
   useLayoutEffect(() => {
     if (!isGame || isReplay) return;
@@ -1470,7 +1476,7 @@ export default function App() {
                     key={player}
                     player={player}
                     state={state}
-                    name={t("玩家 {player}", { player })}
+                    name={replayName(player)}
                     highlighted={state.turn === player}
                   />
                 ))}
@@ -1585,7 +1591,7 @@ export default function App() {
                       key={player}
                       player={player}
                       state={state}
-                      name={t("玩家 {player}", { player })}
+                    name={replayName(player)}
                       highlighted={state.turn === player}
                     />
                   ))}
