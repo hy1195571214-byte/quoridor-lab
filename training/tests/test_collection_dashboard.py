@@ -178,6 +178,30 @@ class DashboardCollectionTests(unittest.TestCase):
             self.assertEqual(len(attempts), 2)
             self.assertEqual(list(rows(path)), [{"move": "e2"}])
 
+    def test_finished_game_retries_a_temporary_checkpoint_delete_lock(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            unlink = Path.unlink
+            attempts = []
+
+            def unlink_with_lock(path, *args, **kwargs):
+                if path.parent == root / "pending":
+                    attempts.append(path)
+                    if len(attempts) == 1:
+                        raise PermissionError("Checkpoint is temporarily locked")
+                return unlink(path, *args, **kwargs)
+
+            with patch.object(Path, "unlink", unlink_with_lock):
+                result = collect(FakeExpert(), output=root, games=1,
+                                 remote_sides=("master", "master"), progress=lambda _: None)
+
+            self.assertIsNone(result["error"])
+            [game] = list(rows(root / "episodes.jsonl"))
+            self.assertEqual(game["status"], "completed")
+            self.assertEqual(attempts, [root / "pending" / f"{game['episode_id']}.json"] * 2)
+            self.assertFalse(attempts[0].exists())
+            self.assertEqual(read(root / f"episode-{game['episode_id']}.json"), game)
+
     def test_dashboard_read_retries_while_a_checkpoint_is_being_replaced(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "checkpoint.json"
@@ -188,6 +212,33 @@ class DashboardCollectionTests(unittest.TestCase):
             ]) as reader:
                 self.assertEqual(read(path), {"moves": ["e2"]})
             self.assertEqual(reader.call_count, 2)
+
+    def test_dashboard_details_can_poll_while_one_checkpoint_is_locked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_id = "a" * 32
+            folder = root / run_id
+            pending = folder / "pending"
+            pending.mkdir(parents=True)
+            _atomic(folder / "run.json", {"status": "paused", "config": {"opening": []}})
+            locked = pending / "locked.json"
+            _atomic(locked, {"episode_id": "locked", "game_number": 1, "moves": []})
+            _atomic(pending / "visible.json", {"episode_id": "visible", "game_number": 2, "moves": []})
+            app = create_dashboard(root, data_dir=root, replay_base="http://localhost")
+            read_text = Path.read_text
+
+            def read_with_lock(path, *args, **kwargs):
+                if path == locked:
+                    raise PermissionError("Checkpoint is temporarily locked")
+                return read_text(path, *args, **kwargs)
+
+            with TestClient(app) as client:
+                url = f"/api/runs/{run_id}"
+                with patch.object(Path, "read_text", read_with_lock):
+                    response = client.get(url)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual([game["game_number"] for game in response.json()["active"]], [2])
+                self.assertEqual([game["game_number"] for game in client.get(url).json()["active"]], [1, 2])
 
     def test_resume_changes_request_interval_without_restarting_saved_game(self):
         created = []
