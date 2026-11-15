@@ -1,0 +1,4 @@
+{"at": 1794723777.2202508, "connections": 4, "interval": 0.35, "seconds": 45.15, "valid": 24, "invalid": 102, "games": 0, "valid_per_minute": 31.9, "status": "running", "error_kind": null}
+{"at": 1794723839.473685, "connections": 8, "interval": 0.2, "seconds": 60.17, "valid": 52, "invalid": 225, "games": 0, "valid_per_minute": 51.8, "status": "running", "error_kind": null}
+{"at": 1794723904.357036, "connections": 12, "interval": 0.15, "seconds": 60.21, "valid": 80, "invalid": 290, "games": 1, "valid_per_minute": 79.7, "status": "running", "error_kind": null}
+{"at": 1794724039.474914, "connections": 16, "interval": 0.1, "seconds": 60.26, "valid": 101, "invalid": 441, "games": 1, "valid_per_minute": 100.6, "status": "running", "error_kind": null}

@@ -28,6 +28,8 @@ npm run dev -- --port 4173 --strictPort
 
 运行 Barricade 双 AI 示范采集、查看多盘进度或回放棋谱，请看 [本地采集 Dashboard 指南与实测](docs/COLLECTION_DASHBOARD.md)。
 
+提高采集吞吐的方法、16 条连接配置和逐档实测见 [采集提速指南](docs/COLLECTION_SPEED_TUNING.md)。
+
 仓库已公开，组员可直接 Fork 或克隆。
 
 ```sh
