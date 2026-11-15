@@ -1,6 +1,21 @@
 # Reference 与实验阅读资料
 
-本目录收录 Quoridor 强化学习实验的论文原文、无公式中文概括，以及训练、测试和优化方法。整理日期为 2026-11-13，项目状态依据提交 `49a23f8` 的代码。
+本目录收录 Quoridor 强化学习实验的论文原文、无公式中文概括，以及训练、测试和优化方法。更新日期为 2026-11-15，本次同步依据 GitHub 提交 `b109a4e` 的参考资料、采集说明与训练代码。
+
+## 当前训练路线与采集状态
+
+采用“专家棋谱行为克隆预训练 → 固定对战评估 → 继承权重进行强化学习微调”。用户报告两台电脑正在采集 master 对 master、master 对 expert。实际样本数量和质量在接收导出文件后登记，原始批次按来源保存。
+
+首版建议优先使用 master 行动，expert 行动保留独立标签。其他档位与五档示范顺序继续作为后续数据和课程实验，比较时记录实际使用量、更新预算及数据划分。
+
+## 本次同步的说明
+
+- 保留 GitHub 新增的 P8 AlphaGo（2016）笔记、BibTeX 和官方原文来源记录，接入两阶段训练依据。
+- 接入采集 Dashboard、双远端示范、数据下载和提速说明，指导两台电脑的数据接收与审计。
+- 在实施指南中加入异常应手、缓存、重复、截断、教师难度筛选和固定数据划分的检查要求。
+- 训练监控、正式数据适配和 PPO 按实际开发状态登记，已采集数据的审计结果在导入后补充。
+
+[采集 Dashboard](../docs/COLLECTION_DASHBOARD.md) · [采集提速与质量记录](../docs/COLLECTION_SPEED_TUNING.md)
 
 ## 从哪里开始阅读
 
@@ -38,6 +53,7 @@ P3 的本地原文为 2022 年的 arXiv v3，P6 的本地原文为 2019 年的 a
 |---|---|---|
 | 合法行动与胜负判定 | [Python 规则](../training/quoridor_lab/rules.py) | 所有对手、训练和评估共用的规则基础 |
 | 观察、行动与奖励 | [Gymnasium 环境](../training/quoridor_lab/env.py) | 训练程序与游戏交互的接口 |
+| 双远端采集与数据审计 | [Dashboard](../docs/COLLECTION_DASHBOARD.md) · [质量记录](../docs/COLLECTION_SPEED_TUNING.md) | 两台电脑导出合并，按行动难度筛选示范，统计重复和结束原因 |
 | masked REINFORCE | [现有训练示例](../training/examples/train_policy_gradient.py) | 已有的策略梯度基线，对应 P1、P3 |
 | 先模仿预训练，再强化学习 | P8 · [模仿学习](../training/examples/train_imitation.py) · [REINFORCE](../training/examples/train_policy_gradient.py) | 先学习示范走法，再通过 `--warm-start` 继承策略权重并从对战胜负学习 |
 | PPO / MaskablePPO | P2、P3 与选定框架版本文档 | 后续算法候选，需完成适配与评估 |

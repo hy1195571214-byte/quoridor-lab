@@ -4,6 +4,10 @@
 
 当前可运行 **React 网页、浏览器 / Python 规则、策略接口和 Gymnasium 环境**。网页包含本地双人、基线人机、回放、变化、原站压缩链接、完整 JSON 棋谱和浏览器视频导出。此前训练示例保留，当前开发阶段聚焦平台与接口。使用及交付状态请看 [组员使用指南](docs/DELIVERY_GUIDE.md) 和 [交付验收矩阵](docs/DELIVERY_AUDIT.md)。
 
+## 模型训练路线
+
+先将专家棋谱用于行为克隆预训练，再通过新对局继承权重做强化学习微调。用户正在两台电脑采集 master 对 master、master 对 expert，数据导入时检查难度标签、重复、异常应手和固定划分。当前保留监督训练与 REINFORCE 示例，PPO 和持续训练监控按后续适配推进。实验沿用双方合计 256 次行动上限。[实施指南](references/EXPERIMENT_METHODS.md) · [训练操作说明](docs/TRAINING_GUIDE.md) · [Reference](references/README.md)
+
 ## 网页启动
 
 不修改程序时，可直接打开 [离线 HTML](frontend/offline/index.html)。传给组员请使用 [发布包](https://github.com/hy1195571214-byte/quoridor-lab/releases/latest) 中的 ZIP，解压后双击 `offline/index.html`，无需安装开发环境。
