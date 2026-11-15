@@ -38,13 +38,15 @@
   .toolbar select { width: min(100%, 355px); }
   .actions { display: flex; gap: 15px; flex-wrap: wrap; font-size: 13px; margin: 12px 0; }
   a { color: #c9e7a6; text-underline-offset: 4px; }
-  .scroll { overflow-x: auto; }
+  .scroll { max-height: min(45vh, 360px); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+  .scroll th { position: sticky; top: 0; background: #1a211e; z-index: 1; }
+  #activeReplay { max-height: 170px; overflow: auto; overscroll-behavior: contain; }
   table { border-collapse: collapse; width: 100%; font-size: 13px; }
   td, th { padding: 11px 7px; text-align: left; border-bottom: 1px solid #333e38; white-space: nowrap; }
   th { color: #b0bdb4; font-weight: 500; }
   td:last-child { text-align: right; }
   code { color: #b0bdb4; overflow-wrap: anywhere; font-size: 11px; }
-  #resume { width: auto; margin: 0 0 10px; }
+  #resume, #pause { width: auto; margin: 0 0 10px; }
   .live { min-height: 24px; color: #c9e7a6; }
   @media (max-width: 750px) { body { padding: 24px 14px; } .layout { grid-template-columns: 1fr; } }
 </style>
@@ -61,10 +63,13 @@
         <label><span class="blue">蓝方难度</span><select name="blue"></select></label>
       </div>
       <div class="pair">
-        <label>运行盘数<input name="games" type="number" min="1" max="1000" value="2" required></label>
+        <label>运行盘数<input name="games" type="number" min="1" max="10000" value="2" required></label>
         <label>单盘动作上限<input name="max_plies" type="number" min="2" max="256" value="256" required></label>
       </div>
-      <label>同时运行盘数<input name="concurrent_games" type="number" min="1" max="32" value="1" required><small>各盘轮流提交走法，共用远端请求间隔。</small></label>
+      <label>同时运行盘数<input name="concurrent_games" type="number" min="1" max="100" value="1" required><small>各盘轮流提交走法，共用远端请求间隔。</small></label>
+      <label>每条连接的盘数（可选）<input name="games_per_connection" type="number" min="1" max="100" placeholder="留空则共用一条连接"><small>所有请求共用全局间隔。</small></label>
+      <label>全局请求间隔（秒）<input name="request_interval" type="number" min="0.05" step="0.01" value="1" required></label>
+      <label>整批时间上限（秒，可选）<input name="time_limit_seconds" type="number" min="0.01" step="0.01" placeholder="留空则跑完整批"></label>
       <label>固定开局（可选）<input name="opening" placeholder="例如 e2,e8"><small>以逗号分隔。开局会写入棋谱，采集从下一手开始。</small></label>
       <label class="check"><input name="fresh" type="checkbox">每步重新请求，跳过缓存</label>
       <button class="primary" id="start">开始采集</button>
@@ -77,16 +82,31 @@
       <select id="runs" aria-label="选择历史运行"><option value="">暂无运行</option></select>
     </div>
     <p id="live" class="live" role="status"></p>
+      <p id="campaignProgress" class="muted"></p>
     <p id="error" class="notice"></p>
     <div id="details" hidden>
-      <button id="resume" hidden>恢复此批采集</button>
+      <button id="pause" hidden>暂停采集</button>
+      <div id="resumeSettings" hidden>
+        <form id="resumeConfig">
+          <div class="pair">
+            <label>续跑同时运行盘数<input name="concurrent_games" type="number" min="1" max="100" required></label>
+            <label>续跑请求间隔（秒）<input name="request_interval" type="number" min="0.05" step="0.01" required></label>
+          </div>
+          <button id="resume">恢复此批采集</button>
+        </form>
+      </div>
       <progress id="progress" aria-label="采集进度"></progress>
-      <div class="actions" id="activeReplay"></div>
+      <div class="actions" id="activeReplay" tabindex="0" aria-label="当前对局进度"></div>
       <div class="stats" id="metrics"></div>
       <p id="counts" class="muted"></p>
       <p id="scope" class="muted"><small>重复统计基于本批已结束棋谱。局面比较棋子、墙、余墙和行动方；重复示范再比较档位与应手。出现次数减去唯一数即为重复数。</small></p>
       <h3>棋谱</h3>
-      <div class="scroll"><table>
+      <div class="actions" id="pages" hidden>
+        <button type="button" id="previousPage">上一页</button>
+        <span id="pageStatus"></span>
+        <button type="button" id="nextPage">下一页</button>
+      </div>
+      <div class="scroll" tabindex="0" role="region" aria-label="棋谱滚动列表"><table>
         <thead><tr><th scope="col">盘次</th><th scope="col">结果</th><th scope="col">行动</th><th scope="col">棋谱重复</th><th scope="col">回放</th></tr></thead>
         <tbody id="games"></tbody>
       </table></div>
@@ -99,13 +119,15 @@
   const $ = (id) => document.getElementById(id);
   const form = $("config");
   const levels = {easy: "Easy", medium: "Medium", hard: "Hard", expert: "Expert", master: "Master"};
-  const statuses = {running: "采集中", paused: "已暂停", failed: "失败", finished: "已结束"};
+  const statuses = {queued: "等待采集", running: "采集中", paused: "已暂停", failed: "失败", finished: "已结束"};
   const selected = $("runs");
   let version = 0;
   let statsKey = "";
   let stats = null;
   let submitting = false;
   let busy = false;
+  const pageSize = 100;
+  let offset = 0;
   let requestedRun = new URLSearchParams(location.search).get("run");
   for (const name of ["red", "blue"]) {
     form.elements[name].replaceChildren(...Object.entries(levels).map(([value, label]) => new Option(label, value)));
@@ -131,33 +153,56 @@
   function render(run) {
     $("details").hidden = false;
     const {config, active, games} = run;
+    const saved = run.games_saved ?? games.length;
     const starts = games.map(game => Date.parse(game.started_at));
     const ends = games.map(game => Date.parse(game.finished_at));
     const elapsed = run.elapsed_seconds ?? (run.status === "finished" && games.length
       ? (Math.max(...ends) - Math.min(...starts)) / 1000 : 0);
     const timing = elapsed > 0 ? " · 耗时 " + elapsed.toFixed(1) + " 秒" : "";
+    const limit = config.time_limit_seconds ? " · 上限 " + config.time_limit_seconds + " 秒" : "";
     const banner = statuses[run.status] + " · " + levels[config.red] + " 对 " + levels[config.blue]
       + " · 同时运行 " + (config.concurrent_games ?? 1) + " 盘"
+      + (config.games_per_connection ? " · 每连接 " + config.games_per_connection + " 盘" : "")
+      + " · 请求间隔 " + (config.request_interval ?? 1) + " 秒"
+      + (run.peak_inflight ? " · 同时在途峰值 " + run.peak_inflight : "")
       + (config.use_cache === false ? " · 每步重新请求" : "")
-      + timing;
+      + limit + timing + (run.stop_reason === "time_limit" ? " · 到时截断" : "");
     $("live").textContent = banner;
     $("error").textContent = run.error || "";
-    $("resume").hidden = !["paused", "failed"].includes(run.status);
+    $("pause").hidden = !run.can_pause;
+    const resumeSettings = $("resumeSettings");
+    const showResume = ["paused", "failed"].includes(run.status) || run.can_resume_queue;
+    if (showResume && (resumeSettings.hidden || resumeSettings.dataset.run !== run.id)) {
+      const fields = $("resumeConfig").elements;
+      fields.concurrent_games.value = config.concurrent_games ?? 1;
+      fields.concurrent_games.max = Math.min(config.games, 100);
+      fields.request_interval.value = config.request_interval ?? 1;
+      resumeSettings.dataset.run = run.id;
+    }
+    resumeSettings.hidden = !showResume;
     $("resume").disabled = busy || submitting;
     $("progress").max = config.games;
-    $("progress").value = games.length;
+    $("progress").value = saved;
+    $("pages").hidden = run.games_saved == null || saved <= pageSize;
+    $("previousPage").disabled = !offset;
+    $("nextPage").disabled = offset + pageSize >= saved;
+    $("pageStatus").textContent = saved ? (offset + 1) + "–" + (offset + games.length) + " / " + saved : "";
     $("activeReplay").replaceChildren(...active.map(game => {
       const side = game.turn === 1 ? "红方" : "蓝方";
-      const caption = "第 " + game.game_number + " 盘 · " + game.ply + " 步 · 轮到" + side;
+      const caption = "第 " + game.game_number + " 盘 · " + game.ply + " 步 · 轮到" + side
+        + (game.deferred ? " · 非法应手待补跑" : "");
       return game.replay ? link(caption + " ↗", game.replay, true) : make("span", caption);
     }));
     const items = [
-      [games.length + " / " + config.games, "已保存"],
+      [saved + " / " + config.games, "已保存"],
+      [run.completed ?? games.filter(game => game.status === "completed").length, "自然完局"],
+      [run.truncated ?? games.filter(game => game.status === "truncated").length, "截断棋谱"],
       [run.unique_games, "唯一棋谱"],
       [run.duplicates, "重复棋谱"],
-      [stats?.samples ?? "…", "示范步数"],
-      [stats?.repeated_positions ?? "…", "重复局面"],
-      [stats?.repeated_demonstrations ?? "…", "重复示范"],
+      [stats?.samples ?? run.samples_saved ?? "…", "示范步数"],
+      ...(run.campaign ? [[run.deferred ?? 0, "非法应手待补跑"]] : []),
+      ...(!run.campaign ? [[stats?.repeated_positions ?? "…", "重复局面"],
+        [stats?.repeated_demonstrations ?? "…", "重复示范"]] : []),
     ];
     $("metrics").replaceChildren(...items.map(([value, label]) => {
       const card = make("div", "");
@@ -169,20 +214,21 @@
     const repeat = stats?.repeated_request_histories
       ? " · 相同历史和档位重复请求 " + stats.repeated_request_histories + " 组，返回不同应手 " + stats.changed_request_histories + " 组"
       : "";
-    const throughput = stats && elapsed > 0 && run.status === "finished"
-      ? " · 每分钟 " + (60 * stats.samples / elapsed).toFixed(1) + " 条示范" : "";
+    const sampling = run.sampling_seconds ?? elapsed;
+    const throughput = stats && sampling > 0 && run.status === "finished"
+      ? " · 每分钟 " + (60 * (stats.samples - stats.cached) / sampling).toFixed(1) + " 条远端应手" : "";
     $("counts").textContent = stats ? "缓存应手 " + stats.cached + (split ? " · " + split : "") + repeat + throughput : "";
     $("games").replaceChildren(...games.map((game, index) => {
       const row = make("tr", "");
       const sides = game.config.remote_sides ?? [config.red, config.blue];
-      let outcome = "步数截断";
+      let outcome = game.finished_reason === "time_limit" ? "到时截断" : "步数截断";
       if (game.winner === 1 || game.winner === 2) {
         const red = game.winner === 1;
         const level = levels[sides[game.winner - 1]];
         const label = sides[0] === sides[1] ? (red ? " A" : " B") : "";
         outcome = level + label + "（" + (red ? "红方" : "蓝方") + "）胜";
       }
-      for (const cell of [game.game_number ?? index + 1, outcome, game.ply_count, game.duplicate ? "重复组" : "唯一"]) row.append(make("td", cell));
+      for (const cell of [game.game_number ?? offset + index + 1, outcome, game.ply_count, game.duplicate ? "重复组" : "唯一"]) row.append(make("td", cell));
       const replay = make("td", "");
       replay.append(link("打开回放 ↗", game.replay, true));
       row.append(replay);
@@ -196,8 +242,8 @@
       $("games").append(row);
     }
     const files = "/api/runs/" + run.id + "/files/";
-    $("downloads").replaceChildren(...(games.length ? [link("下载棋谱 JSONL", files + "episodes.jsonl")] : []),
-      ...(games.length || active.some(game => game.ply > config.opening.length) ? [link("下载逐步示范 JSONL", files + "transitions.jsonl")] : []));
+    $("downloads").replaceChildren(...(saved ? [link("下载棋谱 JSONL", files + "episodes.jsonl")] : []),
+      ...(saved || active.some(game => game.ply > config.opening.length) ? [link("下载逐步示范 JSONL", files + "transitions.jsonl")] : []));
     $("directory").textContent = run.directory;
   }
   async function refresh(preferred) {
@@ -208,7 +254,9 @@
     const current = runs.find(run => run.id === candidate)?.id || runs[0]?.id;
     requestedRun = null;
     selected.replaceChildren(...runs.map(run => new Option(
-      new Date(run.created_at).toLocaleString("zh-CN") + " · " + levels[run.config.red] + " 对 " + levels[run.config.blue], run.id)));
+      (run.campaign ? "批次 " + run.campaign_order : new Date(run.created_at).toLocaleString("zh-CN"))
+      + " · " + levels[run.config.red] + " 对 " + levels[run.config.blue]
+      + " · " + statuses[run.status], run.id)));
     busy = runs.some(run => run.status === "running");
     $("start").disabled = busy || submitting;
     if (!current) {
@@ -220,15 +268,30 @@
     if (new URLSearchParams(location.search).get("run") !== current) {
       history.replaceState(null, "", "?run=" + current);
     }
-    const run = await api("/api/runs/" + current);
+    const run = await api("/api/runs/" + current + "?offset=" + offset + "&limit=" + pageSize);
     if (ticket !== version) return;
-    const key = run.id + ":" + run.games.length;
-    if (key !== statsKey) {
+    const campaign = run.campaign ? runs.filter(item => item.campaign === run.campaign) : [];
+    const finishedBatches = campaign.filter(item => item.status === "finished").length;
+    const currentBatch = campaign.find(item => ["running", "paused", "failed"].includes(item.status));
+    run.can_resume_queue = !busy && run.status === "queued" && campaign.find(item => item.status !== "finished")?.id === run.id;
+    $("campaignProgress").replaceChildren(...(campaign.length ? [
+      document.createTextNode("正式采集 · 已结束批次 " + finishedBatches + " / " + campaign.length),
+      ...(currentBatch && currentBatch.id !== run.id ? [
+        document.createTextNode(" · "),
+        link("查看当前批次", "?run=" + currentBatch.id),
+      ] : []),
+    ] : []));
+    const saved = run.games_saved ?? run.games.length;
+    const key = run.id + ":" + saved;
+    if (run.campaign) {
+      statsKey = "";
+      stats = null;
+    } else if (key !== statsKey) {
       stats = null;
       render(run);
       const result = await api("/api/runs/" + current + "/stats");
       if (ticket !== version) return;
-      if (result.games === run.games.length) {
+      if (result.games === saved) {
         stats = result;
         statsKey = key;
       }
@@ -236,20 +299,24 @@
     render(run);
   }
   function report(error) { $("error").textContent = error.message; }
-  selected.addEventListener("change", () => refresh().catch(report));
+  selected.addEventListener("change", () => { offset = 0; refresh().catch(report); });
+  $("previousPage").addEventListener("click", () => { offset -= pageSize; refresh().catch(report); });
+  $("nextPage").addEventListener("click", () => { offset += pageSize; refresh().catch(report); });
   async function submit(url, config) {
     submitting = true;
     $("submitMessage").textContent = "";
-    $("start").disabled = $("resume").disabled = true;
+    $("start").disabled = $("resume").disabled = $("pause").disabled = true;
     try {
       const result = await api(url, {
         method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(config),
       });
+      offset = 0;
       await refresh(result.id);
     } catch (error) { $("submitMessage").textContent = error.message; }
     finally {
       submitting = false;
       $("start").disabled = $("resume").disabled = busy;
+      $("pause").disabled = false;
     }
   }
   form.addEventListener("submit", (event) => {
@@ -257,13 +324,24 @@
     const values = Object.fromEntries(new FormData(form));
     values.games = Number(values.games);
     values.concurrent_games = Number(values.concurrent_games);
+    values.games_per_connection = values.games_per_connection ? Number(values.games_per_connection) : null;
+    values.request_interval = Number(values.request_interval);
+    values.time_limit_seconds = values.time_limit_seconds ? Number(values.time_limit_seconds) : null;
     values.max_plies = Number(values.max_plies);
     values.opening = values.opening.split(",").map(move => move.trim()).filter(Boolean);
     values.use_cache = !form.elements.fresh.checked;
     delete values.fresh;
     submit("/api/runs", values);
   });
-  $("resume").addEventListener("click", () => submit("/api/runs/" + selected.value + "/resume", {}));
+  $("resumeConfig").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const fields = event.currentTarget.elements;
+    submit("/api/runs/" + selected.value + "/resume", {
+      concurrent_games: Number(fields.concurrent_games.value),
+      request_interval: Number(fields.request_interval.value),
+    });
+  });
+  $("pause").addEventListener("click", () => submit("/api/runs/" + selected.value + "/pause", {}));
   async function poll() {
     try { if (!submitting) await refresh(); } catch (error) { report(error); }
     setTimeout(poll, 1800);

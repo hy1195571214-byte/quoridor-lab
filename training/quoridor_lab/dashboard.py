@@ -1,7 +1,8 @@
 """Local collection monitor and single-worker controller."""
 from collections import Counter
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, ExitStack
 from datetime import datetime, timezone
+from math import ceil
 import argparse
 import json
 from pathlib import Path
@@ -11,18 +12,18 @@ from typing import Literal
 from urllib.parse import urlencode
 import uuid
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from .collect import _atomic, collect
-from .opponents import RemoteExpert
+from .collect import _atomic, _retry_file_access, collect
+from .opponents import MIN_REQUEST_INTERVAL, RemoteExpert, RequestGate
 from .rules import State
 
 
 def rows(path):
     if path.exists():
-        with path.open(encoding="utf-8") as file:
+        with _retry_file_access(path.open, encoding="utf-8") as file:
             for line in file:
                 if not line.endswith("\n"):
                     break
@@ -34,7 +35,7 @@ def rows(path):
 
 def read(path):
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(_retry_file_access(path.read_text, encoding="utf-8"))
     except FileNotFoundError:
         return None
 
@@ -88,16 +89,49 @@ def sample_stats(path, games):
 
 
 Level = Literal["easy", "medium", "hard", "expert", "master"]
+LEVELS = ("easy", "medium", "hard", "expert", "master")
 
 
 class RunConfig(BaseModel):
     red: Level = "expert"
     blue: Level = "expert"
-    games: int = Field(default=2, ge=1, le=1000)
-    concurrent_games: int = Field(default=1, ge=1, le=32)
+    games: int = Field(default=2, ge=1, le=10000)
+    concurrent_games: int = Field(default=1, ge=1, le=100)
     max_plies: int = Field(default=256, ge=2, le=256)
+    time_limit_seconds: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    games_per_connection: int | None = Field(default=None, ge=1, le=100)
+    request_interval: float = Field(default=1.0, ge=MIN_REQUEST_INTERVAL, allow_inf_nan=False)
+    illegal_move_retries: int = Field(default=0, ge=0, le=2)
     opening: list[str] = Field(default_factory=list, max_length=255)
     use_cache: bool = True
+
+
+class CampaignConfig(BaseModel):
+    games_per_matchup: int = Field(default=10000, ge=2, le=10000, multiple_of=2)
+    connections: int = Field(default=6, ge=1, le=100)
+    request_interval: float = Field(default=1.0, ge=MIN_REQUEST_INTERVAL, allow_inf_nan=False)
+    illegal_move_retries: int = Field(default=0, ge=0, le=2)
+
+
+class ResumeConfig(BaseModel):
+    concurrent_games: int | None = Field(default=None, ge=1, le=100)
+    request_interval: float | None = Field(default=None, ge=MIN_REQUEST_INTERVAL, allow_inf_nan=False)
+
+
+def campaign_runs(config):
+    for index in reversed(range(len(LEVELS))):
+        for weaker in reversed(LEVELS[:index + 1]):
+            stronger = LEVELS[index]
+            matchup = f"{weaker}-{stronger}"
+            count = config.games_per_matchup
+            directions = [(stronger, weaker, count)] if stronger == weaker else [
+                (stronger, weaker, count // 2), (weaker, stronger, count // 2),
+            ]
+            for first, second, games in directions:
+                yield matchup, RunConfig(red=first, blue=second, games=games,
+                    concurrent_games=min(games, config.connections), games_per_connection=1,
+                    request_interval=config.request_interval, illegal_move_retries=config.illegal_move_retries,
+                    use_cache=False).model_dump()
 
 
 def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert):
@@ -105,6 +139,8 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
     root.mkdir(parents=True, exist_ok=True)
     lock = threading.RLock()
     worker = None
+    active_run_id = None
+    stop_requested = None
 
     @asynccontextmanager
     async def lifespan(app):
@@ -117,44 +153,98 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
 
     app = FastAPI(lifespan=lifespan)
 
-    def run_collection(folder, run, resume):
+    def run_collection(folder, run, resume, stop):
         started = time.monotonic()
+        previous_sampling = run.get("sampling_seconds", 0)
+        sampling_end = None
         try:
             config = run["config"]
+            limit = config.get("time_limit_seconds")
+            deadline = started + max(0, limit - previous_sampling) if limit is not None else None
             completed = sum(1 for _ in rows(folder / "episodes.jsonl"))
             remaining = config["games"] - completed
             if remaining > 0:
-                expert = expert_factory(data_dir=data_dir, cache=config.get("use_cache", True))
-                try:
+                group_size = config.get("games_per_connection")
+                connection_count = ceil(min(remaining, config.get("concurrent_games", 1)) / group_size) if group_size else 1
+                with ExitStack() as connections:
+                    interval = config.get("request_interval", 1.0)
+                    gate = RequestGate(interval=interval, stopped=stop)
+                    campaign = bool(run.get("campaign"))
+                    use_lanes = connection_count > 1 or campaign
+                    experts = []
+                    for _ in range(connection_count):
+                        options = {"request_gate": gate}
+                        if interval != 1.0:
+                            options["interval"] = interval
+                        expert = expert_factory(data_dir=data_dir, cache=config.get("use_cache", True), **options)
+                        connections.callback(expert.close)
+                        if experts:
+                            expert.cache = experts[0].cache
+                        experts.append(expert)
                     result = collect(
-                        expert, output=folder, games=remaining, resume=resume,
+                        experts[0], output=folder, games=remaining, resume=resume,
                         remote_sides=(config["red"], config["blue"]),
                         max_plies=config["max_plies"], opening=config["opening"],
                         concurrent_games=config.get("concurrent_games", 1),
+                        deadline=deadline,
+                        request_lanes=experts if use_lanes else (),
+                        games_per_connection=(group_size or 1) if use_lanes else group_size,
+                        illegal_move_retries=config.get("illegal_move_retries", 0),
+                        defer_illegal_responses=campaign,
+                        deferred_retry_limit=5 if campaign else 0,
+                        retry_transient=campaign,
                         progress=lambda _: None,
                     )
-                finally:
-                    expert.close()
+                run["connections"] = connection_count
+                run["peak_inflight"] = gate.peak_inflight if use_lanes else int(result["network_requests"] > 0)
+                sampling_end = deadline if result["time_limit_reached"] else time.monotonic()
+                run["network_requests"] = run.get("network_requests", 0) + result["network_requests"]
                 if result["error"]:
-                    run.update(status="paused", error=result["error"]["message"])
+                    failure = result["error"]
+                    message = "已暂停采集。" if failure["kind"] == "stopped" else failure["message"]
+                    run.update(status="paused", error=message, error_kind=failure["kind"])
+                elif result["time_limit_reached"]:
+                    run.update(status="finished", error=None, stop_reason="time_limit")
                 else:
                     run.update(status="finished", error=None)
             else:
                 run.update(status="finished", error=None)
         except Exception as exc:
             run.update(status="failed", error=str(exc))
+        run["sampling_seconds"] = previous_sampling + (sampling_end or time.monotonic()) - started
         run["elapsed_seconds"] = run.get("elapsed_seconds", 0) + time.monotonic() - started
         _atomic(folder / "run.json", run)
 
     def launch(folder, run, resume):
-        nonlocal worker
+        nonlocal worker, active_run_id, stop_requested
         if worker and worker.is_alive():
             raise HTTPException(409, "A collection run is already active.")
-        run.update(status="running", error=None)
+        run.update(status="running", error=None, error_kind=None)
         _atomic(folder / "run.json", run)
-        worker = threading.Thread(target=run_collection, args=(folder, run, resume), daemon=True)
+        stop_requested = threading.Event()
+        active_run_id = run["id"]
+        worker = threading.Thread(target=run_queue, args=(folder, run, resume, stop_requested), daemon=True)
         worker.start()
         return {"id": run["id"]}
+
+    def run_queue(folder, run, resume, stop):
+        nonlocal active_run_id
+        while True:
+            run_collection(folder, run, resume, stop)
+            with lock:
+                if stop.is_set() or not run.get("campaign") or run["status"] != "finished" or run.get("stop_reason"):
+                    break
+                waiting = [item for path in root.glob("*/run.json")
+                           if (item := read(path)) and item.get("campaign") == run["campaign"]
+                           and item["status"] == "queued"]
+                if not waiting:
+                    break
+                run = min(waiting, key=lambda item: item["campaign_order"])
+                folder = root / run["id"]
+                run.update(status="running", error=None, error_kind=None)
+                _atomic(folder / "run.json", run)
+                active_run_id = run["id"]
+                resume = False
 
     def folder_for(run_id):
         if len(run_id) != 32 or any(ch not in "0123456789abcdef" for ch in run_id):
@@ -189,28 +279,71 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
             return launch(folder, run, False)
 
     @app.post("/api/runs/{run_id}/resume")
-    def resume_run(run_id: str):
+    def resume_run(run_id: str, settings: ResumeConfig | None = None):
         with lock:
             folder = folder_for(run_id)
             run = read(folder / "run.json")
-            if run["status"] not in {"paused", "failed"}:
+            if run["status"] == "queued" and run.get("campaign"):
+                unfinished = [item for path in root.glob("*/run.json")
+                              if (item := read(path)) and item.get("campaign") == run["campaign"]
+                              and item["status"] != "finished"]
+                if run["id"] != min(unfinished, key=lambda item: item["campaign_order"])["id"]:
+                    raise HTTPException(409, "先恢复本次正式采集中排在前面的批次。")
+            elif run["status"] not in {"paused", "failed"}:
                 raise HTTPException(409, "This run cannot be resumed.")
+            if settings:
+                overrides = settings.model_dump(exclude_none=True)
+                if overrides.get("concurrent_games", 1) > run["config"]["games"]:
+                    raise HTTPException(400, "同时运行盘数不能超过总盘数。")
+                run["config"].update(overrides)
             return launch(folder, run, True)
+
+    @app.post("/api/runs/{run_id}/pause", status_code=202)
+    def pause_run(run_id: str):
+        with lock:
+            folder = folder_for(run_id)
+            if not worker or not worker.is_alive() or active_run_id != run_id or read(folder / "run.json")["status"] != "running":
+                raise HTTPException(409, "此批次未在采集。")
+            stop_requested.set()
+            return {"id": run_id}
+
+    @app.post("/api/campaigns", status_code=201)
+    def start_campaign(config: CampaignConfig):
+        with lock:
+            if worker and worker.is_alive():
+                raise HTTPException(409, "A collection run is already active.")
+            if any((item := read(path)) and item.get("campaign")
+                   and item["status"] in {"queued", "paused", "failed"}
+                   for path in root.glob("*/run.json")):
+                raise HTTPException(409, "Resume the existing campaign first.")
+            campaign_id = uuid.uuid4().hex
+            created = datetime.now(timezone.utc).isoformat()
+            planned = []
+            for order, (matchup, settings) in enumerate(campaign_runs(config), 1):
+                run_id = uuid.uuid4().hex
+                folder = root / run_id
+                folder.mkdir()
+                run = {"id": run_id, "created_at": created, "config": settings,
+                       "status": "queued", "campaign": campaign_id,
+                       "campaign_order": order, "matchup": matchup}
+                _atomic(folder / "run.json", run)
+                planned.append((folder, run))
+            start = launch(*planned[0], False)
+            return {**start, "campaign": campaign_id, "batches": len(planned),
+                    "games": sum(run["config"]["games"] for _, run in planned)}
 
     @app.get("/api/runs")
     def runs():
         return sorted((run for path in root.glob("*/run.json") if (run := read(path))),
-                      key=lambda run: run["created_at"], reverse=True)
+                      key=lambda run: (run["created_at"], -run.get("campaign_order", 0)), reverse=True)
 
     @app.get("/api/runs/{run_id}")
-    def details(run_id: str):
+    def details(run_id: str, offset: int = Query(0, ge=0),
+                limit: int | None = Query(None, ge=1, le=250)):
         folder = folder_for(run_id)
         run = read(folder / "run.json")
         games = list(rows(folder / "episodes.jsonl"))
         seen = Counter(tuple(game["moves"]) for game in games)
-        for game in games:
-            game["duplicate"] = seen[tuple(game["moves"])] > 1
-            game["replay"] = replay_link(replay_base, game)
         active = []
         finished_ids = {game["episode_id"] for game in games}
         for path in (folder / "pending").glob("*.json"):
@@ -218,7 +351,8 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
             if pending and pending["episode_id"] not in finished_ids:
                 moves = pending["moves"]
                 game = {"game_number": pending.get("game_number", len(games) + 1),
-                        "ply": len(moves), "turn": 1 + len(moves) % 2}
+                        "ply": len(moves), "turn": 1 + len(moves) % 2,
+                        "deferred": bool(pending.get("deferred_error"))}
                 if moves:
                     game["replay"] = replay_link(
                         replay_base, {"moves": moves, "status": "running", "config": pending["config"]},
@@ -226,8 +360,20 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
                 active.append(game)
         active.sort(key=lambda game: game["game_number"])
         games.sort(key=lambda game: game.get("game_number", 0))
-        run.update(games=games, active=active, duplicates=len(games) - len(seen),
+        page = games[offset:offset + limit] if limit is not None else games
+        for game in page:
+            game["duplicate"] = seen[tuple(game["moves"])] > 1
+            game["replay"] = replay_link(replay_base, game)
+        outcomes = Counter(game["status"] for game in games)
+        opening_plies = len(run["config"].get("opening", []))
+        run.update(games=page, games_saved=len(games), completed=outcomes["completed"],
+                   truncated=outcomes["truncated"], samples_saved=sum(
+                       game["ply_count"] - len(game["config"].get("opening", [])) for game in games
+                   ) + sum(max(0, game["ply"] - opening_plies) for game in active),
+                   active=active, deferred=sum(game["deferred"] for game in active),
+                   duplicates=len(games) - len(seen),
                    unique_games=len(seen), directory=str(folder.resolve()))
+        run["can_pause"] = bool(run["status"] == "running" and active_run_id == run_id and not stop_requested.is_set())
         return run
 
     @app.get("/api/runs/{run_id}/stats")

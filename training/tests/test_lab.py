@@ -132,6 +132,11 @@ class AdapterTests(unittest.TestCase):
                 with self.assertRaises(RemoteError) as raised:
                     expert.choose(State.from_moves(["e2"]))
                 self.assertEqual(raised.exception.kind, kind)
+                if kind == "illegal_response":
+                    diagnostics = raised.exception.diagnostics
+                    self.assertEqual(diagnostics["move"], response["move"])
+                    self.assertEqual(diagnostics["rule_error"], "illegal-move")
+                    self.assertGreaterEqual(diagnostics["latency_seconds"], 0)
                 self.assertFalse(expert.cache)
                 expert.close()
 

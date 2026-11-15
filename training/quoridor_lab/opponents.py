@@ -17,11 +17,45 @@ import socketio
 from .rules import Action, State
 
 
+MIN_REQUEST_INTERVAL = 0.05
+
+
 class RemoteError(RuntimeError):
-    def __init__(self, message: str, *, kind="upstream_error", retryable=False):
+    def __init__(self, message: str, *, kind="upstream_error", retryable=False, diagnostics=None):
         super().__init__(message)
         self.kind = kind
         self.retryable = retryable
+        self.diagnostics = diagnostics
+
+
+class RequestGate:
+    def __init__(self, interval=1.0, stopped=None):
+        self.interval = interval
+        self.lock = threading.Lock()
+        self.cache_lock = threading.Lock()
+        self.stopped = stopped if stopped is not None else threading.Event()
+        self.last_started = 0.0
+        self.inflight = 0
+        self.peak_inflight = 0
+
+    def wait(self, deadline):
+        with self.lock:
+            delay = max(0, self.last_started + self.interval - time.monotonic())
+            if deadline is not None:
+                delay = min(delay, max(0, deadline - time.monotonic()))
+            if self.stopped.wait(delay):
+                raise RemoteError("Collection stopped after a request error", kind="stopped")
+            now = time.monotonic()
+            if deadline is not None and now >= deadline:
+                raise RemoteError("Collection time limit reached", kind="time_limit")
+            self.last_started = now
+            with self.cache_lock:
+                self.inflight += 1
+                self.peak_inflight = max(self.peak_inflight, self.inflight)
+
+    def done(self):
+        with self.cache_lock:
+            self.inflight -= 1
 
 
 @dataclass
@@ -70,13 +104,14 @@ class RemoteExpert:
 
     def __init__(self, *, difficulty="expert", data_dir="data", interval=1.0,
                  timeout=30.0, proxy_env=False, cache=True,
-                 base_url="https://api.barricade.gg"):
+                 base_url="https://api.barricade.gg", request_gate=None):
         if difficulty not in self.difficulties:
             raise ValueError("Unknown difficulty")
-        if interval < 0.25 or timeout <= 0:
-            raise ValueError("interval must be >= 0.25 seconds; timeout must be positive")
+        if interval < MIN_REQUEST_INTERVAL or timeout <= 0:
+            raise ValueError(f"interval must be >= {MIN_REQUEST_INTERVAL} seconds; timeout must be positive")
         self.difficulty, self.base_url = difficulty, base_url.rstrip("/")
         self.interval, self.timeout = interval, timeout
+        self.request_gate = request_gate
         self.proxy_env, self.use_cache = proxy_env, cache
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -104,31 +139,42 @@ class RemoteExpert:
         self.network_requests = 0
         self.cache_hits = 0
 
-    def _connect(self):
+    def _connect(self, timeout=None):
         if self.client and self.client.connected:
             return
+        timeout = self.timeout if timeout is None else timeout
         session = requests.Session()
         session.trust_env = self.proxy_env
         client = socketio.Client(http_session=session, reconnection=False,
-                                 request_timeout=self.timeout)
+                                 request_timeout=timeout)
         try:
             client.connect(self.base_url, namespaces=["/ai"],
                            auth={"deviceId": self.device_id},
                            headers={"Origin": "https://barricade.gg"},
-                           transports=["polling"], wait_timeout=self.timeout)
+                           transports=["polling"], wait_timeout=timeout)
         except Exception as exc:
             client.disconnect()
-            raise RemoteError(f"Expert connection failed: {exc}",
+            raise RemoteError(f"Expert connection failed: {str(exc) or type(exc).__name__}",
                               kind="connection", retryable=True) from exc
         self.client = client
 
-    def choose(self, state: State, *, difficulty=None) -> Decision:
+    def choose(self, state: State, *, difficulty=None, deadline=None) -> Decision:
         difficulty = self.difficulty if difficulty is None else difficulty
         if difficulty not in self.difficulties:
             raise ValueError("Unknown difficulty")
         if state.winner is not None:
             raise ValueError("Cannot query the expert after the game has ended")
+
+        def remaining():
+            if deadline is None:
+                return self.timeout
+            seconds = deadline - time.monotonic()
+            if seconds <= 0:
+                raise RemoteError("Collection time limit reached", kind="time_limit")
+            return min(seconds, self.timeout)
+
         with self._lock:
+            remaining()
             key = hashlib.sha256(json.dumps([self.base_url, difficulty,
                                              list(state.history)]).encode()).hexdigest()
             if self.use_cache and key in self.cache:
@@ -141,21 +187,34 @@ class RemoteExpert:
                                 metadata={"difficulty": difficulty,
                                           "observed_at": item["observed_at"],
                                           "provider_response": item["response"]})
-            self._connect()
-            time.sleep(max(0, self.interval - (time.monotonic() - self._last_request)))
-            correlation = str(uuid.uuid4())
-            self._last_request = time.monotonic()
-            self.network_requests += 1
-            start = time.monotonic()
+            self._connect(remaining())
+            if self.request_gate is not None:
+                self.request_gate.wait(deadline)
+            else:
+                delay = max(0, self.interval - (time.monotonic() - self._last_request))
+                if deadline is not None:
+                    delay = min(delay, max(0, deadline - time.monotonic()))
+                time.sleep(delay)
             try:
-                response = self.client.call("ai:get_move", {
-                    "moves": ",".join(state.history), "difficulty": difficulty,
-                    "correlationId": correlation, "deviceId": self.device_id,
-                }, namespace="/ai", timeout=self.timeout)
-            except Exception as exc:
-                self.close()
-                raise RemoteError(f"Expert request failed: {exc}", kind="transport",
-                                  retryable=True) from exc
+                timeout = remaining()
+                correlation = str(uuid.uuid4())
+                self._last_request = time.monotonic()
+                self.network_requests += 1
+                start = time.monotonic()
+                try:
+                    response = self.client.call("ai:get_move", {
+                        "moves": ",".join(state.history), "difficulty": difficulty,
+                        "correlationId": correlation, "deviceId": self.device_id,
+                    }, namespace="/ai", timeout=timeout)
+                except Exception as exc:
+                    self.close()
+                    remaining()
+                    raise RemoteError(f"Expert request failed: {str(exc) or type(exc).__name__}", kind="transport",
+                                      retryable=True) from exc
+            finally:
+                if self.request_gate is not None:
+                    self.request_gate.done()
+            remaining()
             latency = time.monotonic() - start
             if not isinstance(response, dict):
                 raise RemoteError("Expert returned a non-object acknowledgement", kind="protocol")
@@ -169,17 +228,25 @@ class RemoteExpert:
                 action = Action.parse(response.get("move"))
             except ValueError as exc:
                 raise RemoteError(str(exc), kind="protocol") from exc
-            if state.error(action):
+            rule_error = state.error(action)
+            if rule_error:
                 raise RemoteError(f"Illegal expert response: {action.notation}",
-                                  kind="illegal_response")
+                                  kind="illegal_response", diagnostics={
+                                      "move": action.notation,
+                                      "rule_error": rule_error,
+                                      "latency_seconds": latency,
+                                      "correlation_verified": response.get("correlationId") == correlation,
+                                  })
             observed = datetime.now(timezone.utc).isoformat()
             item = {"key": key, "move": action.notation, "response": response,
                     "observed_at": observed, "history": list(state.history),
                     "difficulty": difficulty, "latency_seconds": latency}
             if self.use_cache:
-                with self.cache_path.open("a") as file:
-                    file.write(json.dumps(item, ensure_ascii=False) + "\n")
-                self.cache[key] = item
+                cache_lock = self.request_gate.cache_lock if self.request_gate is not None else self._lock
+                with cache_lock:
+                    with self.cache_path.open("a") as file:
+                        file.write(json.dumps(item, ensure_ascii=False) + "\n")
+                    self.cache[key] = item
             return Decision(action, "barricade:" + difficulty, latency, False, {
                 "difficulty": difficulty, "observed_at": observed,
                 "provider_response": response,
