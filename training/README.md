@@ -133,6 +133,8 @@ last-error.json         最近一次中断原因（如有）
 
 ## 模仿专家走法
 
+两组各 500 局的共享样本及 Master 应手筛选示例见 [Barricade 共享棋谱与使用规范](../docs/SHARED_BARRICADE_DATASETS.md)。
+
 ```bash
 .venv/bin/python examples/train_imitation.py \
   --data data/collection/transitions.jsonl \
