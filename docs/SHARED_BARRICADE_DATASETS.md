@@ -1,5 +1,15 @@
 # Barricade 共享棋谱与使用规范
 
+## Master 对 Master 正式数据集
+
+2026 年 11 月 17 日发布。红蓝双方均为 Barricade Master，标准开局，红方先手。正式数据集包含来源批次按完成时间排序的前 3,000 盘自然完局，共 181,157 手。红方胜 1,689 盘，蓝方胜 1,311 盘。 [下载完整棋谱 JSONL](../training/data/datasets/master-vs-master-3000-20261117/episodes.jsonl)
+
+棋谱为 UTF-8 JSONL，每行一盘，包含完整走法、双方档位、胜方和终局。SHA-256 为 `25ee84a40228ab544115c5f332b53e857582d99ec2ff7b037e7a61431b333a93`。
+
+2026 年 11 月 16 日发布的 500 盘 Master 对 Master 样本全部包含在这 3,000 盘里，原记录逐条相同。训练或统计时直接使用正式数据集即可。 [此前的 500 盘样本](../training/data/shared-samples/master-vs-master-500-20261116.jsonl)
+
+## 2026 年 11 月 16 日发布的共享样本
+
 2026 年 11 月 16 日发布的共享样本共 1,000 局。两组各含 500 盘自然完局，均从各自的已保存棋局中随机无放回抽取。在同一个 GitHub Release 的 Assets 中可下载两份数据和校验文件。[统一下载入口](https://github.com/hy1195571214-byte/quoridor-lab/releases/tag/barricade-samples-20261116)
 
 | 红方 / 蓝方 | 抽样池 | 文件与用途 |
