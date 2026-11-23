@@ -69,7 +69,7 @@ finally:
     teacher.close()
 ```
 
-默认使用 Socket.IO 的 polling 传输，不需要 WebSocket 浏览器。原始验证环境的代理曾使 Python 连接重置，因此本适配器默认直连；需要使用环境代理时加入 `--proxy-env`，或在 Python 中设 `proxy_env=True`。不修改系统网络设置。
+默认从握手开始直接使用 WebSocket，不需要浏览器。2026-11-16 的交叉实验将频繁返回错误 `e2` 的路径定位到绕过环境代理的 Polling 初始化；WebSocket 首连在使用和绕过代理时均通过同局面对照。CLI 可用 `--transport polling` 或 `--transport upgrade` 复现旧路径；Python 使用 `transport="websocket"`。连接失败不自动回退到 Polling。适配器默认不使用环境代理，且 HTTP 与 WebSocket 均遵守这一设置；需要使用现有环境代理时加入 `--proxy-env`，或在 Python 中设 `proxy_env=True`。不修改系统网络设置。详见[排查记录](../docs/BARRICADE_E2_INVESTIGATION_20261116.md)。
 
 ## 自动批量对战采集
 
@@ -114,6 +114,7 @@ python -m quoridor_lab collect --red-difficulty expert --blue-difficulty hard --
 - 所有官网调用串行执行，默认至少间隔 1 秒。同一输出目录一次运行一个采集进程。
 - 设备 ID 保存在 `data/device-id.txt`，持续复用；不读取浏览器账号或轮换身份。
 - 默认缓存已请求的“难度＋完整棋谱”。命中时 `cached=true`，该条是复用先前观测，不是一次新专家采样。研究随机应手分布时可指定 `--no-cache`。
+- 已知异常 e2、非法缓存及带回退/往返信号的 e2 缓存不再直接复用：保留原缓存文件，重新请求远端。新采集的正常首手 e2 和前进 e2 不受此限制。
 - 遇到限流、访问拒绝、非法专家响应或网络错误时停止当前采集，保留检查点，不把错误算成输赢，不换成本地 AI。
 - 每个动作后落盘。中断后用同样命令加 `--resume` 恢复 `pending/` 中的棋局；恢复时沿用检查点的先后手、策略、随机数状态和最大步数。
 - 达到步数上限属于 `truncated`，不是自然和棋。只有到达目标边线才标记 `completed` 和胜方。
@@ -132,6 +133,8 @@ last-error.json         最近一次中断原因（如有）
 
 ## 模仿专家走法
 
+两组各 500 局的共享样本及 Master 应手筛选示例见 [Barricade 共享棋谱与使用规范](../docs/SHARED_BARRICADE_DATASETS.md)。
+
 ```bash
 .venv/bin/python examples/train_imitation.py \
   --data data/collection/transitions.jsonl \
@@ -139,6 +142,32 @@ last-error.json         最近一次中断原因（如有）
 ```
 
 示例使用 PyTorch 的小型策略网络，只训练官网专家动作，屏蔽非法动作，并按整盘棋划分训练与验证集，避免同一盘棋的相邻局面被拆到两边。只有一盘时不生成验证指标。`*.metrics.json` 保存数据划分、损失和动作准确率；动作准确率不等于对战胜率。大量重复开局仍可能跨棋局出现，正式实验还应做局面去重与独立对手评估。
+
+训练示例默认使用 `--e2-policy verified-e2`：排除四种已匹配验证的故障前缀、造成完整盘面第三次重复的 e2，以及缺少原局面新会话复核证据的距离疑点 e2。`--e2-policy quarantine-signatures` 只排除前两类，`--e2-policy raw` 保留全量对照；三者输出各自的 `e2_quality` 计数，不删除或修改原始棋谱。缺少证据不等于已证明坏棋。正常首手、前进 e2 和仅因放墙产生的距离前进型往返均保留。完整盘面比较双方棋子、墙、余墙和行动方；墙变化后的绕路不算同盘面循环。
+
+对没有缩短距离或存在更短棋子走法的 e2，在线适配器会另建会话，在相同档位下重新请求原始完整棋谱一次；若给出不同应手，使用第二次新鲜远端结果并保留第一次候选，若仍为 e2，则经过连接检查后记录两次一致的原局面回复。每次调用最多做一次原局面复核，额外请求遵守共享限速并纳入请求计数；检查请求本身不入棋谱。训练筛选从两条原始请求/回复核对历史、档位、不同会话编号和关联编号，不单凭一个“已确认”标签放行。该策略改变了可疑候选的采样分布，需用全量模式做对照，不能据此宣称棋力提升。
+
+独立只读审计命令（输出目录必须尚不存在）：
+
+```bash
+.venv/bin/python -m quoridor_lab audit-e2 \
+  --source data/collection/transitions.jsonl --output data/e2-audit
+```
+
+它产生 `report.json` 和 `annotations.jsonl`，记录读取范围、原始字节前缀 SHA-256、每个 e2 的分类及高风险前缀数量，支持采集中途的完整行快照。
+
+如需供其他训练程序直接读取，可导出独立快照：
+
+```bash
+.venv/bin/python -m quoridor_lab export-teacher \
+  --source data/collection/transitions.jsonl --output data/verified-teacher
+```
+
+输出 `teacher-transitions.jsonl`、排除原因清单和哈希清单。选中行保留原字节、历史、动作和来源，不重写棋谱，也不覆盖既有目录。默认使用 `verified-e2`，另可通过 `--e2-policy` 选择较宽松或全量对照策略。
+
+在线防护在异常时保持设备身份、档位、原始棋谱和共享请求间隔：已知故障前缀的 e2 会先隔离并重连，旧 Polling/升级路径上的可疑 e2 自动切换为 WebSocket 首连重求解。疑似动作按原即时重试额度处理（至少一次恢复重试，最多两次）；持续异常以 `suspect_e2` 暂停并保留断点，不按弃局补开。非法 e2 也会重置连接；其后仍按原非法应手冷却规则处理。WebSocket 首连上的其他可疑 e2 会使用新鲜的蓝方首手局面检查连接，检查通过时保留候选和复核标记；检查样本不写入棋谱或缓存，真实请求数包含该额外请求。限流和拒绝立即停止，不触发换路规避。所有这些恢复都使用真实远端结果，不本地补棋。
+
+同一请求通道或共享队列累计连续 6 次非法 e2 时触发 `e2_service_unhealthy` 并暂停，防止远端持续故障造成大量弃局。成功的新鲜棋局应手会重置对应连续计数；缓存命中和额外健康检查不重置。某个健康通道的成功不会抹去另一个通道的连续故障。
 
 此前生成过 `data/imitation-smoke.pt` 作为链路样例；模型权重不随仓库或交付包分发，可使用上述命令重新生成。小样本仅供检查模型加载与训练流程。
 

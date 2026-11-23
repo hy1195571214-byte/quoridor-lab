@@ -72,6 +72,11 @@
       <label>整批时间上限（秒，可选）<input name="time_limit_seconds" type="number" min="0.01" step="0.01" placeholder="留空则跑完整批"></label>
       <label>固定开局（可选）<input name="opening" placeholder="例如 e2,e8"><small>以逗号分隔。开局会写入棋谱，采集从下一手开始。</small></label>
       <label class="check"><input name="fresh" type="checkbox">每步重新请求，跳过缓存</label>
+      <label class="check"><input name="completed_only" type="checkbox">仅自然完局计入目标</label>
+      <label class="check"><input name="drain_pending" type="checkbox">优先补完积压棋局</label>
+      <small>已有断点和出错棋局优先续跑；开启放弃重开后，新棋局可补上放弃的名额。</small>
+      <label class="check"><input name="abandon_enabled" type="checkbox">连续失败超限时放弃重开</label>
+      <label>允许连续失败轮数<input name="abandon_after_retries" type="number" min="0" step="1" value="4" required disabled><small>同一局面超过此轮数时放弃。例如设为 4，第 5 轮失败后保存原因并重开。</small></label>
       <button class="primary" id="start">开始采集</button>
     </form>
     <p id="submitMessage" class="notice" role="alert"></p>
@@ -84,6 +89,8 @@
     <p id="live" class="live" role="status"></p>
       <p id="campaignProgress" class="muted"></p>
     <p id="error" class="notice"></p>
+    <p id="e2Health" class="muted"></p>
+    <p id="backlogPolicy" class="muted" hidden></p>
     <div id="details" hidden>
       <button id="pause" hidden>暂停采集</button>
       <div id="resumeSettings" hidden>
@@ -92,6 +99,10 @@
             <label>续跑同时运行盘数<input name="concurrent_games" type="number" min="1" max="100" required></label>
             <label>续跑请求间隔（秒）<input name="request_interval" type="number" min="0.05" step="0.01" required></label>
           </div>
+          <label class="check"><input name="drain_pending" type="checkbox">优先补完积压棋局</label>
+          <label class="check"><input name="completed_only" type="checkbox">仅自然完局计入目标（正式队列固定开启）</label>
+          <label class="check"><input name="abandon_enabled" type="checkbox">连续失败超限时放弃重开</label>
+          <label>允许连续失败轮数<input name="abandon_after_retries" type="number" min="0" step="1" value="4" required disabled></label>
           <button id="resume">恢复此批采集</button>
         </form>
       </div>
@@ -99,7 +110,7 @@
       <div class="actions" id="activeReplay" tabindex="0" aria-label="当前对局进度"></div>
       <div class="stats" id="metrics"></div>
       <p id="counts" class="muted"></p>
-      <p id="scope" class="muted"><small>重复统计基于本批已结束棋谱。局面比较棋子、墙、余墙和行动方；重复示范再比较档位与应手。出现次数减去唯一数即为重复数。</small></p>
+      <p id="scope" class="muted"><small>重复统计基于本批自然完局和截断棋谱。局面比较棋子、墙、余墙和行动方；重复示范再比较档位与应手。示范总步数也包含未完局和放弃棋局。</small></p>
       <h3>棋谱</h3>
       <div class="actions" id="pages" hidden>
         <button type="button" id="previousPage">上一页</button>
@@ -110,6 +121,19 @@
         <thead><tr><th scope="col">盘次</th><th scope="col">结果</th><th scope="col">行动</th><th scope="col">棋谱重复</th><th scope="col">回放</th></tr></thead>
         <tbody id="games"></tbody>
       </table></div>
+      <section id="abandonedSection" hidden>
+        <h3>放弃棋局</h3>
+        <p class="muted"><small>放弃棋局保留已取得的走法与失败原因，不计入完成目标；由新棋局补足名额。</small></p>
+        <div class="actions" id="abandonedPages" hidden>
+          <button type="button" id="previousAbandonedPage">上一页</button>
+          <span id="abandonedPageStatus"></span>
+          <button type="button" id="nextAbandonedPage">下一页</button>
+        </div>
+        <div class="scroll" tabindex="0" role="region" aria-label="放弃棋局滚动列表"><table>
+          <thead><tr><th scope="col">盘次</th><th scope="col">放弃原因</th><th scope="col">行动</th><th scope="col">回放</th></tr></thead>
+          <tbody id="abandonedGames"></tbody>
+        </table></div>
+      </section>
       <div class="actions" id="downloads"></div>
       <code id="directory"></code>
     </div>
@@ -128,10 +152,18 @@
   let busy = false;
   const pageSize = 100;
   let offset = 0;
+  let abandonedOffset = 0;
+  let abandonedPage = {total: 0, games: []};
+  let detailRunId = null;
   let requestedRun = new URLSearchParams(location.search).get("run");
   for (const name of ["red", "blue"]) {
     form.elements[name].replaceChildren(...Object.entries(levels).map(([value, label]) => new Option(label, value)));
     form.elements[name].value = "expert";
+  }
+  for (const settingsForm of [form, $("resumeConfig")]) {
+    settingsForm.elements.abandon_enabled.addEventListener("change", () => {
+      settingsForm.elements.abandon_after_retries.disabled = !settingsForm.elements.abandon_enabled.checked;
+    });
   }
   const make = (tag, value) => {
     const element = document.createElement(tag);
@@ -154,6 +186,9 @@
     $("details").hidden = false;
     const {config, active, games} = run;
     const saved = run.games_saved ?? games.length;
+    const completedOnly = Boolean(run.completed_only ?? (run.campaign || config.completed_only));
+    const completed = run.completed ?? games.filter(game => game.status === "completed").length;
+    const targetSaved = run.target_games_saved ?? (completedOnly ? completed : saved);
     const starts = games.map(game => Date.parse(game.started_at));
     const ends = games.map(game => Date.parse(game.finished_at));
     const elapsed = run.elapsed_seconds ?? (run.status === "finished" && games.length
@@ -164,11 +199,28 @@
       + " · 同时运行 " + (config.concurrent_games ?? 1) + " 盘"
       + (config.games_per_connection ? " · 每连接 " + config.games_per_connection + " 盘" : "")
       + " · 请求间隔 " + (config.request_interval ?? 1) + " 秒"
-      + (run.peak_inflight ? " · 同时在途峰值 " + run.peak_inflight : "")
+      + (config.request_transport ? " · " + ({websocket: "WebSocket 首连", polling: "Polling", upgrade: "Polling 升级"}[config.request_transport]) : "")
+      + (config.proxy_env === true ? " · 使用环境代理" : "")
+      + (completedOnly ? " · 目标仅计自然完局" : "")
+      + (run.peak_inflight ? " · 上一段在途峰值 " + run.peak_inflight : "")
       + (config.use_cache === false ? " · 每步重新请求" : "")
       + limit + timing + (run.stop_reason === "time_limit" ? " · 到时截断" : "");
     $("live").textContent = banner;
     $("error").textContent = run.error || "";
+    const e2 = run.e2_health;
+    $("e2Health").textContent = e2 ? "e2 专项监测（启用后）：已隔离回退/循环候选 "
+      + (e2.by_status.quarantined ?? 0) + " · 非法 e2 " + (e2.by_status.rejected ?? 0)
+      + " · 未独立复核的距离疑点 " + (e2.unverified_reviews ?? 0)
+      + " · 原局面复核换步 " + (e2.by_status.replaced ?? 0)
+      + " · 两次一致 " + (e2.by_status.confirmed ?? 0)
+      + "。待复核含距离及往返信号，不等同于坏棋；旧棋谱另行审计。" : "";
+    const abandonEnabled = config.abandon_after_retries != null;
+    $("backlogPolicy").hidden = !config.drain_pending && !abandonEnabled;
+    $("backlogPolicy").textContent = [
+      ...(config.drain_pending ? [abandonEnabled ? "优先续跑积压棋局。" : "积压优先已开启：先补完已有断点和出错棋局，再开新局。"] : []),
+      ...(abandonEnabled ? ["同一局面连续失败超过 " + config.abandon_after_retries + " 轮后放弃并重开；替换新局可先启动，放弃棋局不计入完成目标。"] : []),
+      ...((config.drain_pending || abandonEnabled) ? ["非法应手冷却重试；明确限流时暂停。"] : []),
+    ].join("");
     $("pause").hidden = !run.can_pause;
     const resumeSettings = $("resumeSettings");
     const showResume = ["paused", "failed"].includes(run.status) || run.can_resume_queue;
@@ -177,30 +229,48 @@
       fields.concurrent_games.value = config.concurrent_games ?? 1;
       fields.concurrent_games.max = Math.min(config.games, 100);
       fields.request_interval.value = config.request_interval ?? 1;
+      fields.drain_pending.checked = Boolean(config.drain_pending);
+      fields.completed_only.checked = completedOnly;
+      fields.completed_only.disabled = Boolean(run.campaign);
+      fields.abandon_enabled.checked = abandonEnabled;
+      fields.abandon_after_retries.value = config.abandon_after_retries ?? 4;
+      fields.abandon_after_retries.disabled = !abandonEnabled;
       resumeSettings.dataset.run = run.id;
     }
     resumeSettings.hidden = !showResume;
     $("resume").disabled = busy || submitting;
     $("progress").max = config.games;
-    $("progress").value = saved;
+    $("progress").value = targetSaved;
+    $("progress").setAttribute("aria-label", completedOnly ? "自然完局目标进度" : "保存棋谱目标进度");
     $("pages").hidden = run.games_saved == null || saved <= pageSize;
     $("previousPage").disabled = !offset;
     $("nextPage").disabled = offset + pageSize >= saved;
     $("pageStatus").textContent = saved ? (offset + 1) + "–" + (offset + games.length) + " / " + saved : "";
     $("activeReplay").replaceChildren(...active.map(game => {
       const side = game.turn === 1 ? "红方" : "蓝方";
+      const retry = game.retry_state;
+      const due = retry && Date.parse(retry.retry_at);
+      const retryLabel = retry && Number.isFinite(due)
+        ? " · 当前局面连续失败 " + retry.count + " 轮 · "
+          + (run.status !== "running" ? "恢复后按冷却时间续跑"
+            : due > Date.now() ? "约 " + Math.ceil((due - Date.now()) / 1000) + " 秒后可重试" : "已到重试时间，等待队列")
+        : game.deferred ? " · 非法应手待补跑" : "";
       const caption = "第 " + game.game_number + " 盘 · " + game.ply + " 步 · 轮到" + side
-        + (game.deferred ? " · 非法应手待补跑" : "");
+        + retryLabel;
       return game.replay ? link(caption + " ↗", game.replay, true) : make("span", caption);
     }));
     const items = [
-      [saved + " / " + config.games, "已保存"],
-      [run.completed ?? games.filter(game => game.status === "completed").length, "自然完局"],
+      [targetSaved + " / " + config.games, completedOnly ? "自然完局目标" : "保存棋谱目标"],
+      [saved, "已保存棋谱"],
+      [completed, "自然完局"],
       [run.truncated ?? games.filter(game => game.status === "truncated").length, "截断棋谱"],
       [run.unique_games, "唯一棋谱"],
       [run.duplicates, "重复棋谱"],
-      [stats?.samples ?? run.samples_saved ?? "…", "示范步数"],
-      ...(run.campaign ? [[run.deferred ?? 0, "非法应手待补跑"]] : []),
+      [run.samples_saved ?? stats?.samples ?? "…", "示范总步数"],
+      ...((run.campaign || config.drain_pending || abandonEnabled) ? [[active.length, "未完成棋局"],
+        [run.deferred ?? 0, "非法应手待补跑"]] : []),
+      ...((abandonEnabled || run.abandoned) ? [[run.abandoned ?? 0, "放弃棋局"],
+        [run.abandoned_samples ?? 0, "放弃棋局示范步数"]] : []),
       ...(!run.campaign ? [[stats?.repeated_positions ?? "…", "重复局面"],
         [stats?.repeated_demonstrations ?? "…", "重复示范"]] : []),
     ];
@@ -241,9 +311,42 @@
       row.append(empty);
       $("games").append(row);
     }
+    $("abandonedSection").hidden = !abandonEnabled && !abandonedPage.total;
+    $("abandonedPages").hidden = abandonedPage.total <= pageSize;
+    $("previousAbandonedPage").disabled = !abandonedOffset;
+    $("nextAbandonedPage").disabled = abandonedOffset + pageSize >= abandonedPage.total;
+    $("abandonedPageStatus").textContent = abandonedPage.total
+      ? (abandonedOffset + 1) + "–" + (abandonedOffset + abandonedPage.games.length) + " / " + abandonedPage.total : "";
+    $("abandonedGames").replaceChildren(...abandonedPage.games.map((game, index) => {
+      const row = make("tr", "");
+      const reason = "同一局面连续失败 " + game.retry_count + " 轮（上限 " + game.retry_limit + " 轮）";
+      const message = typeof game.error === "string" ? game.error : game.error?.message;
+      for (const cell of [game.game_number ?? abandonedOffset + index + 1,
+        reason + (message ? " · " + message : ""), game.ply_count]) row.append(make("td", cell));
+      const replay = make("td", "");
+      replay.append(link("打开回放 ↗", game.replay, true));
+      row.append(replay);
+      return row;
+    }));
+    if (!abandonedPage.games.length) {
+      const row = make("tr", "");
+      const empty = make("td", "暂无放弃棋局。");
+      empty.colSpan = 4;
+      row.append(empty);
+      $("abandonedGames").append(row);
+    }
     const files = "/api/runs/" + run.id + "/files/";
+    const diagnosticLabels = {
+      "rejected-moves.jsonl": "下载非法应手记录 JSONL",
+      "deferred-games.jsonl": "下载搁置重试记录 JSONL",
+      "last-error.json": "下载最近错误诊断 JSON",
+      "e2-events.jsonl": "下载 e2 专项记录 JSONL",
+    };
     $("downloads").replaceChildren(...(saved ? [link("下载棋谱 JSONL", files + "episodes.jsonl")] : []),
-      ...(saved || active.some(game => game.ply > config.opening.length) ? [link("下载逐步示范 JSONL", files + "transitions.jsonl")] : []));
+      ...(run.samples_saved || saved || active.some(game => game.ply > config.opening.length) ? [link("下载逐步示范 JSONL", files + "transitions.jsonl")] : []),
+      ...(run.abandoned ? [link("下载放弃棋局 JSONL", files + "abandoned-games.jsonl")] : []),
+      ...Object.entries(diagnosticLabels).filter(([name]) => (run.diagnostic_files ?? []).includes(name))
+        .map(([name, label]) => link(label, files + name)));
     $("directory").textContent = run.directory;
   }
   async function refresh(preferred) {
@@ -264,12 +367,22 @@
       $("live").textContent = "等待开始";
       return;
     }
+    if (detailRunId !== current) {
+      detailRunId = current;
+      offset = abandonedOffset = 0;
+      abandonedPage = {total: 0, games: []};
+    }
     selected.value = current;
     if (new URLSearchParams(location.search).get("run") !== current) {
       history.replaceState(null, "", "?run=" + current);
     }
     const run = await api("/api/runs/" + current + "?offset=" + offset + "&limit=" + pageSize);
     if (ticket !== version) return;
+    const abandoned = run.abandoned
+      ? await api("/api/runs/" + current + "/abandoned?offset=" + abandonedOffset + "&limit=" + pageSize)
+      : {total: 0, games: []};
+    if (ticket !== version) return;
+    abandonedPage = abandoned;
     const campaign = run.campaign ? runs.filter(item => item.campaign === run.campaign) : [];
     const finishedBatches = campaign.filter(item => item.status === "finished").length;
     const currentBatch = campaign.find(item => ["running", "paused", "failed"].includes(item.status));
@@ -299,9 +412,11 @@
     render(run);
   }
   function report(error) { $("error").textContent = error.message; }
-  selected.addEventListener("change", () => { offset = 0; refresh().catch(report); });
+  selected.addEventListener("change", () => { offset = abandonedOffset = 0; refresh().catch(report); });
   $("previousPage").addEventListener("click", () => { offset -= pageSize; refresh().catch(report); });
   $("nextPage").addEventListener("click", () => { offset += pageSize; refresh().catch(report); });
+  $("previousAbandonedPage").addEventListener("click", () => { abandonedOffset -= pageSize; refresh().catch(report); });
+  $("nextAbandonedPage").addEventListener("click", () => { abandonedOffset += pageSize; refresh().catch(report); });
   async function submit(url, config) {
     submitting = true;
     $("submitMessage").textContent = "";
@@ -310,7 +425,7 @@
       const result = await api(url, {
         method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(config),
       });
-      offset = 0;
+      offset = abandonedOffset = 0;
       await refresh(result.id);
     } catch (error) { $("submitMessage").textContent = error.message; }
     finally {
@@ -330,7 +445,11 @@
     values.max_plies = Number(values.max_plies);
     values.opening = values.opening.split(",").map(move => move.trim()).filter(Boolean);
     values.use_cache = !form.elements.fresh.checked;
+    values.drain_pending = form.elements.drain_pending.checked;
+    values.completed_only = form.elements.completed_only.checked;
+    values.abandon_after_retries = form.elements.abandon_enabled.checked ? Number(form.elements.abandon_after_retries.value) : null;
     delete values.fresh;
+    delete values.abandon_enabled;
     submit("/api/runs", values);
   });
   $("resumeConfig").addEventListener("submit", (event) => {
@@ -339,6 +458,9 @@
     submit("/api/runs/" + selected.value + "/resume", {
       concurrent_games: Number(fields.concurrent_games.value),
       request_interval: Number(fields.request_interval.value),
+      drain_pending: fields.drain_pending.checked,
+      completed_only: fields.completed_only.checked,
+      abandon_after_retries: fields.abandon_enabled.checked ? Number(fields.abandon_after_retries.value) : null,
     });
   });
   $("pause").addEventListener("click", () => submit("/api/runs/" + selected.value + "/pause", {}));

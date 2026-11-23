@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from torch import nn
 from quoridor_lab.learning import network
+from quoridor_lab.quality import select_teacher_rows
 
 
 def main():
@@ -17,12 +18,14 @@ def main():
     p.add_argument("--epochs", type=int, default=10)
     p.add_argument("--batch-size", type=int, default=64)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument('--e2-policy', choices=['verified-e2', 'quarantine-signatures', 'raw'], default='verified-e2',
+                   help='Also exclude unconfirmed geometric e2 reviews by default; signature-only and raw are explicit baselines')
     args = p.parse_args()
     if args.epochs < 1 or args.batch_size < 1:
         p.error("epochs and batch-size must be positive")
     torch.manual_seed(args.seed)
     rows = [json.loads(line) for line in Path(args.data).read_text().splitlines() if line.strip()]
-    rows = [row for row in rows if row["is_teacher"] and row["source"].startswith("barricade:")]
+    rows, quality_summary = select_teacher_rows(rows, args.e2_policy)
     if not rows:
         raise SystemExit("No observed Barricade expert decisions found")
     for row in rows:
@@ -70,6 +73,7 @@ def main():
     output.with_suffix(".metrics.json").write_text(json.dumps({
         "teacher_samples": len(rows), "train_episodes": sorted(set(episodes) - val_episodes),
         "validation_episodes": sorted(val_episodes), "metrics": metrics,
+        "e2_quality": quality_summary,
         "note": "Action imitation accuracy is not playing strength or a recovered expert algorithm.",
     }, indent=2))
 

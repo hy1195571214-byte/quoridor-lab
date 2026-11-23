@@ -6,11 +6,19 @@ import json
 from .collect import collect
 from .opponents import RemoteExpert, LocalPolicy, RemoteError
 from .rules import State
+from .quality import audit_e2, export_teacher
 
 
 def main():
     parser = argparse.ArgumentParser(description="Quoridor Lab expert adapter and dataset collection")
     sub = parser.add_subparsers(dest="command", required=True)
+    audit = sub.add_parser('audit-e2', help='Read-only e2 audit with separate annotations')
+    audit.add_argument('--source', required=True)
+    audit.add_argument('--output', required=True, help='New output directory; never overwrites existing evidence')
+    export = sub.add_parser('export-teacher', help='Export a separate training dataset with e2 quality controls')
+    export.add_argument('--source', required=True)
+    export.add_argument('--output', required=True, help='New output directory')
+    export.add_argument('--e2-policy', choices=['verified-e2','quarantine-signatures','raw'], default='verified-e2')
     for name in ("probe", "collect", "serve"):
         p = sub.add_parser(name)
         p.add_argument("--data-dir", default="data")
@@ -19,6 +27,7 @@ def main():
         p.add_argument("--timeout", type=float, default=30)
         p.add_argument("--proxy-env", action="store_true", help="Use HTTP(S)_PROXY instead of direct requests")
         p.add_argument("--no-cache", action="store_true")
+        p.add_argument("--transport", choices=("polling", "websocket", "upgrade"), default="websocket")
     sub.choices["probe"].add_argument("--moves", default="e2", help="Comma-separated legal move history; empty string for opening")
     p = sub.choices["collect"]
     p.add_argument("--games", type=int, default=1)
@@ -37,6 +46,12 @@ def main():
     p.add_argument("--training-dir", help="Training run folders written by train_monitored.py --run-dir")
     p.add_argument("--training-corpus", help="Frozen episode JSONL for the training replay dashboard")
     args = parser.parse_args()
+    if args.command == 'audit-e2':
+        print(json.dumps(audit_e2(args.source, args.output), ensure_ascii=False, indent=2))
+        return
+    if args.command == 'export-teacher':
+        print(json.dumps(export_teacher(args.source, args.output, args.e2_policy), ensure_ascii=False, indent=2))
+        return
     remote_sides = None
     if args.command == "collect" and (args.red_difficulty or args.blue_difficulty):
         if not (args.red_difficulty and args.blue_difficulty and args.opponent == "remote"):
@@ -44,7 +59,7 @@ def main():
         remote_sides = (args.red_difficulty, args.blue_difficulty)
     remote = RemoteExpert(difficulty=args.difficulty, data_dir=args.data_dir,
                           interval=args.interval, timeout=args.timeout,
-                          proxy_env=args.proxy_env, cache=not args.no_cache)
+                          proxy_env=args.proxy_env, cache=not args.no_cache, transport=args.transport)
     try:
         if args.command == "probe":
             state = State.from_moves(args.moves.split(",") if args.moves else [])

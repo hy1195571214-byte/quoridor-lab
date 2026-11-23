@@ -19,6 +19,10 @@ from pydantic import BaseModel, Field
 from .collect import _atomic, _retry_file_access, collect
 from .opponents import MIN_REQUEST_INTERVAL, RemoteExpert, RequestGate
 from .rules import State
+from .quality import QUALITY_VERSION, geometric_review
+
+
+DIAGNOSTIC_FILES = ("rejected-moves.jsonl", "deferred-games.jsonl", "last-error.json", "e2-events.jsonl")
 
 
 def rows(path):
@@ -45,7 +49,7 @@ def replay_link(base, game):
     sides = game.get("config", {}).get("remote_sides")
     if sides:
         params["ai"] = ",".join(sides)
-    if game["status"] in {"completed", "truncated"}:
+    if game["status"] in {"completed", "truncated", "abandoned"}:
         params["result"] = json.dumps({"winner": game["winner"], "reason": game["finished_reason"]})
     return base.rstrip("/") + "/analysis?" + urlencode(params)
 
@@ -89,6 +93,7 @@ def sample_stats(path, games):
 
 
 Level = Literal["easy", "medium", "hard", "expert", "master"]
+Transport = Literal["polling", "websocket", "upgrade"]
 LEVELS = ("easy", "medium", "hard", "expert", "master")
 
 
@@ -101,21 +106,33 @@ class RunConfig(BaseModel):
     time_limit_seconds: float | None = Field(default=None, gt=0, allow_inf_nan=False)
     games_per_connection: int | None = Field(default=None, ge=1, le=100)
     request_interval: float = Field(default=1.0, ge=MIN_REQUEST_INTERVAL, allow_inf_nan=False)
+    request_transport: Transport = "websocket"
+    proxy_env: bool = False
     illegal_move_retries: int = Field(default=0, ge=0, le=2)
     opening: list[str] = Field(default_factory=list, max_length=255)
     use_cache: bool = True
+    drain_pending: bool = False
+    abandon_after_retries: int | None = Field(default=None, ge=0)
+    completed_only: bool = False
 
 
 class CampaignConfig(BaseModel):
     games_per_matchup: int = Field(default=10000, ge=2, le=10000, multiple_of=2)
     connections: int = Field(default=6, ge=1, le=100)
     request_interval: float = Field(default=1.0, ge=MIN_REQUEST_INTERVAL, allow_inf_nan=False)
+    request_transport: Transport = "websocket"
+    proxy_env: bool = False
     illegal_move_retries: int = Field(default=0, ge=0, le=2)
 
 
 class ResumeConfig(BaseModel):
     concurrent_games: int | None = Field(default=None, ge=1, le=100)
     request_interval: float | None = Field(default=None, ge=MIN_REQUEST_INTERVAL, allow_inf_nan=False)
+    request_transport: Transport | None = None
+    proxy_env: bool | None = None
+    drain_pending: bool | None = None
+    abandon_after_retries: int | None = Field(default=None, ge=0)
+    completed_only: bool | None = None
 
 
 def campaign_runs(config):
@@ -131,7 +148,9 @@ def campaign_runs(config):
                 yield matchup, RunConfig(red=first, blue=second, games=games,
                     concurrent_games=min(games, config.connections), games_per_connection=1,
                     request_interval=config.request_interval, illegal_move_retries=config.illegal_move_retries,
-                    use_cache=False).model_dump()
+                    request_transport=config.request_transport,
+                    proxy_env=config.proxy_env,
+                    use_cache=False, drain_pending=True, completed_only=True).model_dump()
 
 
 def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert):
@@ -159,9 +178,14 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
         sampling_end = None
         try:
             config = run["config"]
+            campaign = bool(run.get("campaign"))
+            completed_only = campaign or config.get("completed_only", False)
+            if campaign:
+                config["completed_only"] = True
             limit = config.get("time_limit_seconds")
             deadline = started + max(0, limit - previous_sampling) if limit is not None else None
-            completed = sum(1 for _ in rows(folder / "episodes.jsonl"))
+            completed = sum(1 for game in rows(folder / "episodes.jsonl")
+                            if not completed_only or game["status"] == "completed")
             remaining = config["games"] - completed
             if remaining > 0:
                 group_size = config.get("games_per_connection")
@@ -169,11 +193,17 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
                 with ExitStack() as connections:
                     interval = config.get("request_interval", 1.0)
                     gate = RequestGate(interval=interval, stopped=stop)
-                    campaign = bool(run.get("campaign"))
-                    use_lanes = connection_count > 1 or campaign
+                    drain_pending = config.get("drain_pending", False)
+                    abandon_after_retries = config.get("abandon_after_retries")
+                    retry_failed_games = campaign or drain_pending or abandon_after_retries is not None
+                    use_lanes = connection_count > 1 or retry_failed_games or completed_only
                     experts = []
                     for _ in range(connection_count):
                         options = {"request_gate": gate}
+                        if "request_transport" in config:
+                            options["transport"] = config["request_transport"]
+                        if "proxy_env" in config:
+                            options["proxy_env"] = config["proxy_env"]
                         if interval != 1.0:
                             options["interval"] = interval
                         expert = expert_factory(data_dir=data_dir, cache=config.get("use_cache", True), **options)
@@ -190,9 +220,12 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
                         request_lanes=experts if use_lanes else (),
                         games_per_connection=(group_size or 1) if use_lanes else group_size,
                         illegal_move_retries=config.get("illegal_move_retries", 0),
-                        defer_illegal_responses=campaign,
+                        defer_illegal_responses=retry_failed_games,
                         deferred_retry_limit=5 if campaign else 0,
                         retry_transient=campaign,
+                        drain_pending=drain_pending,
+                        abandon_after_retries=abandon_after_retries,
+                        completed_only=completed_only,
                         progress=lambda _: None,
                     )
                 run["connections"] = connection_count
@@ -202,6 +235,10 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
                 if result["error"]:
                     failure = result["error"]
                     message = "已暂停采集。" if failure["kind"] == "stopped" else failure["message"]
+                    if failure['kind'] == 'suspect_e2':
+                        message = '远端持续返回 e2 异常回退或重复盘面候选；已保留断点暂停，该走法未写入棋谱。'
+                    elif failure['kind'] == 'e2_service_unhealthy':
+                        message = '多条新连接连续收到 6 次非法 e2，已保留断点暂停，防止持续弃局重开。'
                     run.update(status="paused", error=message, error_kind=failure["kind"])
                 elif result["time_limit_reached"]:
                     run.update(status="finished", error=None, stop_reason="time_limit")
@@ -219,6 +256,8 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
         nonlocal worker, active_run_id, stop_requested
         if worker and worker.is_alive():
             raise HTTPException(409, "A collection run is already active.")
+        if run.get("campaign"):
+            run["config"]["completed_only"] = True
         run.update(status="running", error=None, error_kind=None)
         _atomic(folder / "run.json", run)
         stop_requested = threading.Event()
@@ -293,6 +332,8 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
                 raise HTTPException(409, "This run cannot be resumed.")
             if settings:
                 overrides = settings.model_dump(exclude_none=True)
+                if "abandon_after_retries" in settings.model_fields_set:
+                    overrides["abandon_after_retries"] = settings.abandon_after_retries
                 if overrides.get("concurrent_games", 1) > run["config"]["games"]:
                     raise HTTPException(400, "同时运行盘数不能超过总盘数。")
                 run["config"].update(overrides)
@@ -343,16 +384,25 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
         folder = folder_for(run_id)
         run = read(folder / "run.json")
         games = list(rows(folder / "episodes.jsonl"))
+        abandoned = list(rows(folder / "abandoned-games.jsonl"))
         seen = Counter(tuple(game["moves"]) for game in games)
         active = []
-        finished_ids = {game["episode_id"] for game in games}
+        finished_ids = {game["episode_id"] for game in games + abandoned}
         for path in (folder / "pending").glob("*.json"):
-            pending = read(path)
+            try:
+                pending = read(path)
+            except PermissionError:
+                # Windows may still be replacing or deleting this checkpoint.
+                # Let the next poll pick it up if it is still pending.
+                continue
             if pending and pending["episode_id"] not in finished_ids:
                 moves = pending["moves"]
                 game = {"game_number": pending.get("game_number", len(games) + 1),
                         "ply": len(moves), "turn": 1 + len(moves) % 2,
                         "deferred": bool(pending.get("deferred_error"))}
+                retry_state = pending.get("retry_state")
+                if retry_state and retry_state.get("ply") == len(moves):
+                    game["retry_state"] = retry_state
                 if moves:
                     game["replay"] = replay_link(
                         replay_base, {"moves": moves, "status": "running", "config": pending["config"]},
@@ -365,16 +415,45 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
             game["duplicate"] = seen[tuple(game["moves"])] > 1
             game["replay"] = replay_link(replay_base, game)
         outcomes = Counter(game["status"] for game in games)
+        completed_only = bool(run.get("campaign")) or run["config"].get("completed_only", False)
         opening_plies = len(run["config"].get("opening", []))
+        abandoned_samples = sum(max(0, game["ply_count"] - len(game["config"].get("opening", [])))
+                                for game in abandoned)
         run.update(games=page, games_saved=len(games), completed=outcomes["completed"],
+                   completed_only=completed_only,
+                   target_games_saved=outcomes["completed"] if completed_only else len(games),
                    truncated=outcomes["truncated"], samples_saved=sum(
                        game["ply_count"] - len(game["config"].get("opening", [])) for game in games
-                   ) + sum(max(0, game["ply"] - opening_plies) for game in active),
+                   ) + sum(max(0, game["ply"] - opening_plies) for game in active) + abandoned_samples,
+                   abandoned=len(abandoned), abandoned_samples=abandoned_samples,
                    active=active, deferred=sum(game["deferred"] for game in active),
+                   diagnostic_files=[name for name in DIAGNOSTIC_FILES if (folder / name).is_file()],
                    duplicates=len(games) - len(seen),
                    unique_games=len(seen), directory=str(folder.resolve()))
         run["can_pause"] = bool(run["status"] == "running" and active_run_id == run_id and not stop_requested.is_set())
+        e2_events = list(rows(folder / 'e2-events.jsonl'))
+        run['e2_health'] = {
+            'quality_version': QUALITY_VERSION,
+            'scope': 'events_since_guard_deployment',
+            'events': len(e2_events),
+            'by_status': dict(Counter(event['status'] for event in e2_events)),
+            'by_category': dict(Counter(event['quality']['category'] for event in e2_events)),
+            'unverified_reviews': sum(event['status'] == 'accepted' and geometric_review(event['quality'])
+                                      and not event['quality'].get('independent_confirmation')
+                                      for event in e2_events),
+        }
         return run
+
+    @app.get("/api/runs/{run_id}/abandoned")
+    def abandoned_games(run_id: str, offset: int = Query(0, ge=0),
+                        limit: int = Query(100, ge=1, le=250)):
+        folder = folder_for(run_id)
+        games = list(rows(folder / "abandoned-games.jsonl"))
+        games.sort(key=lambda game: game.get("game_number", 0))
+        page = games[offset:offset + limit]
+        for game in page:
+            game["replay"] = replay_link(replay_base, game)
+        return {"total": len(games), "games": page}
 
     @app.get("/api/runs/{run_id}/stats")
     def stats(run_id: str):
@@ -382,11 +461,16 @@ def create_dashboard(root, *, data_dir, replay_base, expert_factory=RemoteExpert
         return sample_stats(folder / "transitions.jsonl", list(rows(folder / "episodes.jsonl")))
 
     @app.get("/api/runs/{run_id}/files/{filename}")
-    def download(run_id: str, filename: Literal["episodes.jsonl", "transitions.jsonl"]):
+    def download(run_id: str, filename: Literal[
+        "episodes.jsonl", "transitions.jsonl", "abandoned-games.jsonl",
+        "rejected-moves.jsonl", "deferred-games.jsonl", "last-error.json",
+        "e2-events.jsonl",
+    ]):
         path = folder_for(run_id) / filename
         if not path.is_file():
             raise HTTPException(404, "File has not been captured yet")
-        return FileResponse(path, filename=filename, media_type="application/x-ndjson")
+        media_type = "application/json" if filename == "last-error.json" else "application/x-ndjson"
+        return FileResponse(path, filename=filename, media_type=media_type)
 
     return app
 
