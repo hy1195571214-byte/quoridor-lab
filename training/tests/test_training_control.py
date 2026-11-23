@@ -1,8 +1,11 @@
 """Opening the UI is read-only; only an explicit valid POST can launch a trainer."""
 import json
+import fcntl
+import signal
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -89,6 +92,69 @@ class TrainingControlTests(unittest.TestCase):
                 response = client.get('/training/config')
                 self.assertEqual(response.status_code, 200, response.text)
                 self.assertEqual(response.json()['dataset']['manifest'], str((root / 'dataset/manifest.json').resolve()))
+
+    def test_resume_needs_saved_model_and_an_explicit_post(self):
+        calls = []
+        class FinishedProcess:
+            pid = 12345
+            def poll(self): return 1
+        def factory(command, **kwargs):
+            calls.append(command)
+            return FinishedProcess()
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            _, client = self.setup_controller(root, factory)
+            with client:
+                client.post('/training/start', json={'name': '可恢复训练', 'epochs': 3})
+                run = root / 'runs/pretrain-001'
+                self.assertEqual(client.post('/training/runs/pretrain-001/resume', json={}).status_code, 409)
+                (run / 'latest.pt').write_bytes(b'fake-process-fixture-only')
+                (run / 'status.json').write_text(json.dumps({'architecture': 'cnn32', 'seed': 0, 'total_epochs': 3,
+                    'status': 'failed', 'display_name': '可恢复训练', 'data_mode': 'stream', 'batch_size': 256,
+                    'dataset_manifest': str(root / 'dataset/manifest.json')}))
+                client.get('/training/config')
+                client.get('/training/runs')
+                self.assertEqual(len(calls), 1)
+                response = client.post('/training/runs/pretrain-001/resume', json={})
+                self.assertEqual(response.status_code, 202, response.text)
+                self.assertEqual(response.json()['id'], 'pretrain-001')
+                self.assertEqual(len(calls), 2)
+                self.assertIn('--resume', calls[1])
+                self.assertEqual(calls[1][calls[1].index('--run-dir') + 1], str(run.resolve()))
+                (root / 'dataset/episodes.jsonl').unlink()
+                self.assertEqual(client.post('/training/runs/pretrain-001/resume', json={}).status_code, 503)
+                self.assertEqual(len(calls), 2)
+
+    def test_pause_only_signals_a_locked_verified_training_group_on_post(self):
+        import quoridor_lab.training_control as module
+        class FakeProcess:
+            pid = 12345
+            def poll(self): return None
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            _, client = self.setup_controller(root, lambda *args, **kwargs: FakeProcess())
+            with client:
+                client.post('/training/start', json={})
+                run = (root / 'runs/pretrain-001').resolve()
+                lock = (run / '.writer.lock').open('a')
+                with lock, patch.object(module.os, 'killpg') as send, \
+                        patch.object(module.os, 'getpgid', return_value=12345), \
+                        patch.object(module.subprocess, 'check_output', return_value=f'python -m quoridor_lab.supervised --run-dir {run}'):
+                    self.assertEqual(client.post('/training/runs/pretrain-001/pause', json={}).status_code, 409)
+                    send.assert_not_called()
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    client.get('/training/config')
+                    client.get('/training/runs')
+                    send.assert_not_called()
+                    self.assertEqual(client.post('/training/runs/pretrain-001/pause').status_code, 415)
+                    self.assertEqual(client.post('/training/runs/pretrain-001/pause', json={}, headers={'Origin':'https://example.com'}).status_code, 403)
+                    send.assert_not_called()
+                    self.assertEqual(client.post('/training/runs/pretrain-001/pause', json={}).status_code, 202)
+                    send.assert_called_once_with(12345, signal.SIGINT)
+                    send.reset_mock()
+                    with patch.object(module.subprocess, 'check_output', return_value='unrelated application'):
+                        self.assertEqual(client.post('/training/runs/pretrain-001/pause', json={}).status_code, 409)
+                    send.assert_not_called()
 
     def test_large_corpus_pagination_and_indexed_detail_keep_test_private(self):
         with tempfile.TemporaryDirectory() as folder:

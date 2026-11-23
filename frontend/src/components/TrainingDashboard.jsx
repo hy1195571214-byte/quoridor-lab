@@ -46,6 +46,10 @@ export default function TrainingDashboard({ navigate }) {
   const [runId, setRunId] = useState("");
   const [run, setRun] = useState(null);
   const [connectionError, setConnectionError] = useState("");
+  const [resuming, setResuming] = useState(false);
+  const [resumeError, setResumeError] = useState("");
+  const [pausing, setPausing] = useState(false);
+  const [trainingConfig, setTrainingConfig] = useState(null);
   const [episodes, setEpisodes] = useState([]);
   const [episodeOffset, setEpisodeOffset] = useState(0);
   const [episodeTotal, setEpisodeTotal] = useState(0);
@@ -89,6 +93,7 @@ export default function TrainingDashboard({ navigate }) {
 
   useEffect(() => {
     setRun(null);
+    setResumeError("");
     if (!runId) return;
     const controller = new AbortController();
     let timer;
@@ -187,7 +192,41 @@ export default function TrainingDashboard({ navigate }) {
   const state = useMemo(() => replay(displayedMoves), [displayedMoves.join(",")]);
   const metric = run?.metrics?.at(-1);
   const percentage = value => Number.isFinite(value) ? `${(100 * value).toFixed(1)}%` : "—";
-  const status = { preparing: "准备数据", training: "训练中", completed: "已完成", failed: "训练失败" };
+  const status = { preparing: "准备数据", training: "训练中", completed: "已完成", failed: "训练失败", stopped: "已停止" };
+  const interrupted = run && ["failed", "stopped"].includes(run.status);
+  const running = run && ["preparing", "training"].includes(run.status);
+  const accelerationAvailable = running && trainingConfig?.input_pipeline && run.input_pipeline !== trainingConfig.input_pipeline;
+
+  useEffect(() => {
+    if (!running) setPausing(false);
+  }, [Boolean(running), runId]);
+
+  async function pauseTraining() {
+    if (!running || pausing) return;
+    setPausing(true);
+    setResumeError("");
+    try {
+      await request(`/training/runs/${encodeURIComponent(runId)}/pause`, undefined, {});
+    } catch (error) {
+      setResumeError(error.message);
+      setPausing(false);
+    }
+  }
+
+  async function resumeTraining() {
+    if (!run?.checkpoint || resuming) return;
+    setResuming(true);
+    setResumeError("");
+    try {
+      await request(`/training/runs/${encodeURIComponent(runId)}/resume`, undefined, {});
+      manualRunSelection.current = false;
+      setFollow(true);
+    } catch (error) {
+      setResumeError(error.message);
+    } finally {
+      setResuming(false);
+    }
+  }
 
   function browse(nextPly) {
     setFollow(false);
@@ -208,17 +247,34 @@ export default function TrainingDashboard({ navigate }) {
       </label>
     </header>
     {connectionError && <p className="training-error" role="alert">{connectionError}</p>}
-    {run?.error && <p className="training-error" role="alert">{run.error}</p>}
+    {run?.error && run.status !== "stopped" && <p className="training-error" role="alert">{
+      run.failure_reason === "data_unavailable" || run.error.includes("[Errno 5]")
+        ? t("训练因数据读取中断而停止，请确认数据盘已连接。") : run.error
+    }</p>}
+    {run?.checkpoint_error && <p className="training-error" role="alert">{t("最近一次保存未成功，继续时将使用上一次检查点。")}</p>}
+    {interrupted && <div className="training-resume-panel">
+      <p>{t(run.checkpoint ? "已保留最近保存的模型，点击后可继续训练。" : "这个运行没有保存模型，请在下方“新训练设置”中重新开始。")}</p>
+      {run.checkpoint && <button onClick={resumeTraining} disabled={resuming || runs.some(item => ["preparing", "training"].includes(item.status))}>{t(resuming ? "正在恢复…" : "继续训练")}</button>}
+    </div>}
+    {resumeError && <p className="training-error" role="alert">{resumeError}</p>}
+    {running && <div className="training-resume-panel">
+      <p>{t(accelerationAvailable ? "加速版本已就绪。先暂停保存，再点击“继续训练”即可使用。" : "可暂停并保留最近安全保存的模型，之后手动继续。")}</p>
+      <button onClick={pauseTraining} disabled={pausing || resuming}>{t(pausing ? "正在保存并暂停…" : "暂停训练")}</button>
+    </div>}
     <TrainingProgress run={run} t={t} />
     <section className="training-stats" aria-label={t("训练进度")}>
       <div><span>{t("状态")}</span><strong>{run ? t(status[run.status] ?? run.status) : t("尚未开始训练")}</strong></div>
       <div><span>{t("训练设备")}</span><strong>{run?.device === "mps" ? "Apple GPU" : run?.device?.toUpperCase() ?? "—"}</strong></div>
       <div><span>{t("验证准确率")}</span><strong className={!metric ? "training-stat-pending" : undefined}>{metric ? percentage(metric.validation_action_accuracy) : t("首轮结束后显示")}</strong></div>
-      <div><span>{t("已保存模型")}</span><strong className={!run?.checkpoint ? "training-stat-pending" : undefined}>{run?.checkpoint ? t("第 {epoch} 轮", { epoch: run.checkpoint.epoch }) : t("首轮结束后保存")}</strong></div>
+      <div><span>{t("已保存模型")}</span><strong className={!run?.checkpoint ? "training-stat-pending" : undefined}>{run?.checkpoint ? (
+        run.checkpoint.epoch_complete === false ? t("第 {epoch} 轮 · 第 {batch} 批", { epoch: run.checkpoint.epoch, batch: run.checkpoint.batch })
+          : t("第 {epoch} 轮", { epoch: run.checkpoint.epoch })
+      ) : t(run?.checkpoint_every ? "完成首批后保存" : "此运行尚无保存模型")}</strong></div>
     </section>
     <details className="training-launch-details" open={!runs.some(item => ["preparing", "training"].includes(item.status))}>
       <summary>{t("新训练设置")}</summary>
       <TrainingStartPanel request={request} t={t} runState={runs.map(item => `${item.id}:${item.status}`).join(",")}
+        onConfiguration={setTrainingConfig}
         onStarted={id => { manualRunSelection.current = false; setRunId(id); setFollow(true); }} />
     </details>
     <div className="training-workspace">

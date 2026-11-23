@@ -20,7 +20,7 @@ export default function TrainingProgress({ run, t }) {
   const progress = trainingBatchProgress(run);
   const updated = Date.parse(run.updated_at);
   const age = Number.isFinite(updated) ? Math.max(0, (now - updated) / 1000) : 0;
-  const elapsed = (Number(run.session_seconds) || 0) + (running ? age : 0);
+  const elapsed = (Number(run.total_seconds ?? run.session_seconds) || 0) + (running ? age : 0);
   const number = value => value.toLocaleString();
   const percent = progress.percentage.toFixed(progress.percentage < 1 ? 2 : 1);
   return <section className="training-panel training-live-progress" aria-label={t("实时训练进度")}>
@@ -39,6 +39,6 @@ export default function TrainingProgress({ run, t }) {
       <span>{t("本轮已学习 {done} / {total} 个样本", { done: number(progress.processedSamples), total: number(progress.totalSamples) })}</span>
       <span>{t("最后更新：{seconds}秒前", { seconds: Math.floor(age) })}</span>
     </div>
-    {running && <p className="training-help">{t("数据按批准备，进度会分段前进；验证准确率和模型保存会在整轮结束后更新。")}</p>}
+    {running && <p className="training-help">{t("数据按批准备，进度会分段前进。每 {batches} 批自动保存；验证准确率在整轮结束后更新。", { batches: run.checkpoint_every ?? 100 })}</p>}
   </section>;
 }

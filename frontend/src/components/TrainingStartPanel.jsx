@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { PlayIcon } from "@heroicons/react/24/outline";
 
-export default function TrainingStartPanel({ request, t, runState, onStarted }) {
+export default function TrainingStartPanel({ request, t, runState, onStarted, onConfiguration }) {
   const [config, setConfig] = useState(null);
   const [name, setName] = useState("");
   const [epochs, setEpochs] = useState(40);
@@ -11,17 +11,28 @@ export default function TrainingStartPanel({ request, t, runState, onStarted }) 
   const [device, setDevice] = useState("auto");
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+  const [configError, setConfigError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
-    request("/training/config", controller.signal).then(result => {
-      if (controller.signal.aborted) return;
-      setConfig(result);
-      setName(previous => previous || result.suggested_name);
-      setError("");
-    }).catch(reason => { if (reason.name !== "AbortError") setError(reason.message); });
-    return () => controller.abort();
-  }, [runState]);
+    let timer;
+    async function poll() {
+      try {
+        const result = await request("/training/config", controller.signal);
+        if (controller.signal.aborted) return;
+        setConfig(result);
+        onConfiguration?.(result);
+        setName(previous => previous || result.suggested_name);
+        setConfigError("");
+      } catch (reason) {
+        if (reason.name !== "AbortError") { setConfig(null); onConfiguration?.(null); setConfigError(reason.message); }
+      } finally {
+        if (!controller.signal.aborted) timer = setTimeout(poll, 5000);
+      }
+    }
+    poll();
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [runState, onConfiguration]);
 
   async function start(event) {
     event.preventDefault();
@@ -80,6 +91,8 @@ export default function TrainingStartPanel({ request, t, runState, onStarted }) 
         </button>
       </div>
       {error && <p className="training-error" role="alert">{error}</p>}
+      {configError && <p className="training-error" role="alert">{configError}</p>}
+      <p className="training-help">{t("每 100 批自动保存，异常中断后可从最近保存处继续。")}</p>
     </form>
   </section>;
 }

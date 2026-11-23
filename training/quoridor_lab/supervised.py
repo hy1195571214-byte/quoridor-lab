@@ -1,5 +1,6 @@
 """Monitored behavior cloning on the selected frozen corpus, with bounded-memory streaming."""
 import argparse
+import errno
 import hashlib
 import json
 import os
@@ -16,6 +17,7 @@ from .training_monitor import TrainingJournal
 from .dataset_paths import default_manifest
 from .dataset_import import file_sha256
 from .streaming_dataset import StreamingCorpus
+from .fast_observation import INPUT_PIPELINE, training_observation
 
 
 def load_dataset(manifest_path, journal, sample_limit, data_mode="auto", shuffle_buffer=8192):
@@ -27,7 +29,7 @@ def load_dataset(manifest_path, journal, sample_limit, data_mode="auto", shuffle
     total = sum(row.get("plies", 0) for row in manifest["episodes"] if row["split"] in {"train", "validation"})
     streaming = sample_limit is None and (data_mode == "stream" or (data_mode == "auto" and total > 1_000_000))
     if streaming:
-        key = hashlib.sha256(manifest_path.read_bytes() + f":absolute-v1:stream:{shuffle_buffer}".encode()).hexdigest()
+        key = hashlib.sha256(manifest_path.read_bytes() + f":absolute-v1:stream-v2:{shuffle_buffer}".encode()).hexdigest()
         journal.update(data_mode="stream", dataset_version=manifest.get("version"),
                        dataset_manifest=str(manifest_path), prepared_samples=0)
         return StreamingCorpus(corpus, manifest, shuffle_buffer), key
@@ -62,7 +64,7 @@ def load_dataset(manifest_path, journal, sample_limit, data_mode="auto", shuffle
                 raise ValueError("Master-labelled data is excluded from this training round")
             state = State()
             for ply, move in enumerate(episode["moves"]):
-                observation = state.observation()
+                observation = training_observation(state)
                 action = Action.parse(move)
                 if not observation["action_mask"][action.id]:
                     raise ValueError(f"Illegal teacher action in {uid} at {ply}")
@@ -92,13 +94,14 @@ def sample_count(data, split):
     return data.count(split) if isinstance(data, StreamingCorpus) else len(data[f"{split}_action"])
 
 
-def batches(data, split, batch_size, *, shuffle=False, seed=0, epoch=0):
+def batches(data, split, batch_size, *, shuffle=False, seed=0, epoch=0, start_batch=0, order=None):
     if isinstance(data, StreamingCorpus):
-        yield from data.batches(split, batch_size, shuffle=shuffle, seed=seed, epoch=epoch)
+        yield from data.batches(split, batch_size, shuffle=shuffle, seed=seed, epoch=epoch, start_batch=start_batch)
         return
     count = sample_count(data, split)
-    order = torch.randperm(count).numpy() if shuffle else np.arange(count)
-    for start in range(0, count, batch_size):
+    if order is None:
+        order = torch.randperm(count).numpy() if shuffle else np.arange(count)
+    for start in range(start_batch * batch_size, count, batch_size):
         indices = order[start:start + batch_size]
         yield {name: data[f"{split}_{name}"][indices] for name in ("board", "mask", "action", "episode", "ply")}
 
@@ -149,10 +152,11 @@ def main(argv=None):
     parser.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"], default="auto")
     parser.add_argument("--threads", type=int, default=2)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--checkpoint-every", type=int, default=100, help="Save recoverable progress every N optimizer batches")
     parser.add_argument("--warm-start", help="Load weights for a new run")
     parser.add_argument("--sample-limit", type=int, help="Smoke run only: cap samples in each development split")
     args = parser.parse_args(argv)
-    if min(args.epochs, args.batch_size, args.threads, args.shuffle_buffer) < 1 or args.learning_rate <= 0:
+    if min(args.epochs, args.batch_size, args.threads, args.shuffle_buffer, args.checkpoint_every) < 1 or args.learning_rate <= 0:
         parser.error("Epochs, batch size, threads and learning rate must be positive")
     if args.sample_limit is not None and args.sample_limit < 1:
         parser.error("Sample limit must be positive")
@@ -165,10 +169,14 @@ def main(argv=None):
     if device == "auto":
         device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     journal = TrainingJournal(args.run_dir, args.architecture, args.seed, args.epochs, args.resume)
+    save_progress = None
+    safe_batch_boundary = False
     try:
         journal.update(device=device, learning_rate=args.learning_rate, is_smoke=bool(args.sample_limit),
                        batch_size=args.batch_size, encoding="absolute-v1", torch_version=str(torch.__version__),
-                       display_name=args.name or journal.state.get("display_name") or Path(args.run_dir).name)
+                       display_name=args.name or journal.state.get("display_name") or Path(args.run_dir).name,
+                       checkpoint_every=args.checkpoint_every, shuffle_buffer=args.shuffle_buffer,
+                       input_pipeline=INPUT_PIPELINE)
         data, fingerprint = load_dataset(args.manifest or default_manifest(), journal, args.sample_limit,
                                          args.data_mode, args.shuffle_buffer)
         model = network(args.architecture).to(device)
@@ -176,6 +184,10 @@ def main(argv=None):
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, patience=3, factor=0.5, threshold=1e-4, threshold_mode="abs", min_lr=1e-5)
         epoch_start = global_step = bad_epochs = 0
+        resume_batch = 0
+        resume_loss = resume_seen = resume_seconds = 0
+        resume_order = None
+        last_batch_loss = None
         best_loss = early_stop_best = float("inf")
         if args.resume or args.warm_start:
             path = Path(args.run_dir) / "latest.pt" if args.resume else Path(args.warm_start)
@@ -190,7 +202,16 @@ def main(argv=None):
                     raise ValueError("Resume requires the same frozen corpus and sample selection")
                 optimizer.load_state_dict(saved["optimizer_state"])
                 scheduler.load_state_dict(saved["scheduler_state"])
-                epoch_start, global_step = saved["epoch"], saved["global_step"]
+                if saved.get("batch_size", args.batch_size) != args.batch_size:
+                    raise ValueError("Resume requires the original batch size")
+                epoch_start, global_step = saved.get("resume_epoch", saved["epoch"]), saved["global_step"]
+                resume_batch = saved.get("resume_batch", 0)
+                resume_loss = saved.get("epoch_loss_sum", 0)
+                resume_seen = saved.get("epoch_samples_seen", 0)
+                resume_seconds = saved.get("epoch_seconds", 0)
+                last_batch_loss = saved.get("batch_loss")
+                if saved.get("epoch_order") is not None:
+                    resume_order = saved["epoch_order"].cpu().numpy()
                 best_loss, bad_epochs = saved["best_loss"], saved["bad_epochs"]
                 early_stop_best = saved.get("early_stop_best", best_loss)
                 torch.set_rng_state(saved["torch_random_state"].cpu())
@@ -201,15 +222,64 @@ def main(argv=None):
                     torch.mps.set_rng_state(saved["mps_random_state"].cpu())
                 journal.state["metrics"] = saved["metrics"]
         training_count = sample_count(data, "train")
+        total_batches = (training_count + args.batch_size - 1) // args.batch_size
+        if not 0 <= resume_batch <= total_batches:
+            raise ValueError("Saved batch cursor is outside this dataset")
+        if not isinstance(data, StreamingCorpus) and resume_batch and (resume_order is None or len(resume_order) != training_count):
+            raise ValueError("Saved sample order is missing or invalid")
+        current_epoch, batch_cursor = epoch_start, resume_batch
+        loss_sum, samples_seen, prior_seconds = resume_loss, resume_seen, resume_seconds
+        epoch_order = resume_order
+        epoch_started = time.monotonic()
+        epoch_complete = False
+        safe_batch_boundary = True
+
+        def save_progress(reason="periodic"):
+            complete = epoch_complete
+            payload = {"checkpoint_format": 2, "architecture": args.architecture, "state_dict": model.state_dict(),
+                       "observation_shape": [8, 9, 9], "action_count": 209,
+                       "optimizer_state": optimizer.state_dict(), "scheduler_state": scheduler.state_dict(),
+                       "epoch": current_epoch + 1, "batch": batch_cursor, "epoch_complete": complete,
+                       "resume_epoch": current_epoch + 1 if complete else current_epoch,
+                       "resume_batch": 0 if complete else batch_cursor,
+                       "epoch_loss_sum": 0.0 if complete else loss_sum,
+                       "epoch_samples_seen": 0 if complete else samples_seen,
+                       "epoch_seconds": 0.0 if complete else prior_seconds + time.monotonic() - epoch_started,
+                       "epoch_order": None if complete or epoch_order is None else torch.from_numpy(epoch_order.copy()),
+                       "global_step": global_step, "seed": args.seed, "batch_size": args.batch_size,
+                       "shuffle_buffer": args.shuffle_buffer, "checkpoint_reason": reason,
+                       "input_pipeline": INPUT_PIPELINE,
+                       "batch_loss": last_batch_loss,
+                       "data_fingerprint": fingerprint, "best_loss": best_loss, "bad_epochs": bad_epochs,
+                       "early_stop_best": early_stop_best,
+                       "torch_random_state": torch.get_rng_state(), "python_random_state": random.getstate(),
+                       "cuda_random_states": torch.cuda.get_rng_state_all() if device == "cuda" else None,
+                       "mps_random_state": torch.mps.get_rng_state() if device == "mps" else None,
+                       "metrics": journal.state["metrics"]}
+            journal.checkpoint(payload)
+            return payload
+
         journal.update(status="training", train_samples=training_count,
-                       validation_samples=sample_count(data, "validation"), epoch=epoch_start)
+                       validation_samples=sample_count(data, "validation"), epoch=min(epoch_start + 1, args.epochs),
+                       batch=resume_batch, batches=total_batches)
         for epoch in range(epoch_start, args.epochs):
+            current_epoch = epoch
+            epoch_complete = False
             model.train()
-            started = last_update = time.monotonic()
-            loss_sum = 0.0
-            total_batches = (training_count + args.batch_size - 1) // args.batch_size
+            epoch_started = last_update = time.monotonic()
+            loss_sum = resume_loss if epoch == epoch_start else 0.0
+            samples_seen = resume_seen if epoch == epoch_start else 0
+            prior_seconds = resume_seconds if epoch == epoch_start else 0.0
+            batch_cursor = resume_batch if epoch == epoch_start else 0
+            if not isinstance(data, StreamingCorpus):
+                epoch_order = resume_order if epoch == epoch_start and batch_cursor else torch.randperm(training_count).numpy()
+                if epoch_order is None or len(epoch_order) != training_count:
+                    raise ValueError("Saved sample order is missing or invalid")
+            else:
+                epoch_order = None
             for batch_number, batch in enumerate(batches(data, "train", args.batch_size,
-                    shuffle=True, seed=args.seed, epoch=epoch), 1):
+                    shuffle=True, seed=args.seed, epoch=epoch, start_batch=batch_cursor, order=epoch_order), batch_cursor + 1):
+                safe_batch_boundary = False
                 x = torch.from_numpy(batch["board"]).to(device)
                 mask = torch.from_numpy(batch["mask"]).to(device)
                 y = torch.from_numpy(batch["action"]).long().to(device)
@@ -221,19 +291,28 @@ def main(argv=None):
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 optimizer.step()
-                loss_sum += loss.item() * len(batch["action"])
+                last_batch_loss = loss.item()
+                loss_sum += last_batch_loss * len(batch["action"])
                 global_step += 1
+                batch_cursor = batch_number
+                samples_seen += len(batch["action"])
+                safe_batch_boundary = True
                 if batch_number == 1 or time.monotonic() - last_update >= 1 or batch_number == total_batches:
                     journal.update(epoch=epoch + 1, batch=batch_number,
                                    batches=total_batches,
-                                   global_step=global_step, batch_loss=loss.item(),
+                                   global_step=global_step, batch_loss=last_batch_loss,
                                    sample={"episode_id": str(batch["episode"][0]),
                                            "ply": int(batch["ply"][0])})
                     last_update = time.monotonic()
+                if batch_number == 1 or batch_number % args.checkpoint_every == 0:
+                    save_progress()
+            # Preserve all trained batches before entering the potentially long validation pass.
+            save_progress("before_validation")
             metrics = {"epoch": epoch + 1, "train_loss": loss_sum / training_count,
                        "learning_rate": optimizer.param_groups[0]["lr"],
-                       "seconds": time.monotonic() - started,
+                       "seconds": prior_seconds + time.monotonic() - epoch_started,
                        **evaluate(model, data, args.batch_size, device)}
+            safe_batch_boundary = False
             scheduler.step(metrics["validation_loss"])
             improved = metrics["validation_loss"] < best_loss
             best_loss = min(best_loss, metrics["validation_loss"])
@@ -241,18 +320,10 @@ def main(argv=None):
                 early_stop_best, bad_epochs = metrics["validation_loss"], 0
             else:
                 bad_epochs += 1
+            epoch_complete = True
             journal.metric(metrics)
-            payload = {"architecture": args.architecture, "state_dict": model.state_dict(),
-                       "observation_shape": [8, 9, 9], "action_count": 209,
-                       "optimizer_state": optimizer.state_dict(), "scheduler_state": scheduler.state_dict(),
-                       "epoch": epoch + 1, "global_step": global_step, "seed": args.seed,
-                       "data_fingerprint": fingerprint, "best_loss": best_loss, "bad_epochs": bad_epochs,
-                       "early_stop_best": early_stop_best,
-                       "torch_random_state": torch.get_rng_state(), "python_random_state": random.getstate(),
-                       "cuda_random_states": torch.cuda.get_rng_state_all() if device == "cuda" else None,
-                       "mps_random_state": torch.mps.get_rng_state() if device == "mps" else None,
-                       "metrics": journal.state["metrics"]}
-            journal.checkpoint(payload)
+            safe_batch_boundary = True
+            payload = save_progress("epoch_complete")
             if improved:
                 save_checkpoint(Path(args.run_dir) / "best.pt", payload)
             print(json.dumps(metrics), flush=True)
@@ -260,7 +331,19 @@ def main(argv=None):
                 break
         journal.update(status="completed", stopped_early=bad_epochs >= 8)
     except BaseException as error:
-        journal.update(status="failed", error=str(error) or type(error).__name__)
+        # The run directory is local even when its corpus is on a disconnected external disk.
+        checkpoint_error = None
+        if save_progress is not None and safe_batch_boundary:
+            try:
+                save_progress("interrupted")
+            except Exception as failure:
+                checkpoint_error = str(failure)
+        data_unavailable = isinstance(error, OSError) and error.errno in {errno.EIO, errno.ENOENT, errno.ENODEV, getattr(errno, "ESTALE", -1)}
+        progress = {"epoch": current_epoch + 1, "batch": batch_cursor, "batches": total_batches,
+                    "global_step": global_step, "batch_loss": last_batch_loss} if save_progress is not None else {}
+        journal.update(status="stopped" if isinstance(error, KeyboardInterrupt) else "failed",
+                       error=str(error) or type(error).__name__, failure_reason="data_unavailable" if data_unavailable else None,
+                       checkpoint_error=checkpoint_error, **progress)
         raise
     finally:
         journal.close()

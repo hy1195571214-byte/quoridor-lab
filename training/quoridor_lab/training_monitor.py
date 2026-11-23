@@ -45,6 +45,9 @@ class TrainingJournal:
             self.lock.close()
             raise ValueError("Run directory already exists; choose a new run or resume it")
         self.state = json.loads(status_path.read_text()) if resume and status_path.exists() else {}
+        self.previous_seconds = self.state.get("total_seconds", self.state.get("session_seconds", 0)) if resume else 0
+        for name in ["error", "failure_reason", "checkpoint_error"]:
+            self.state.pop(name, None)
         self.started = time.monotonic()
         self.state.update(architecture=architecture, seed=seed, total_epochs=epochs,
                           status="preparing", metrics=self.state.get("metrics", []))
@@ -53,7 +56,8 @@ class TrainingJournal:
     def update(self, **changes):
         self.state.update(changes)
         self.state.update(updated_at=datetime.now(timezone.utc).isoformat(),
-                          session_seconds=round(time.monotonic() - self.started, 2))
+                          session_seconds=round(time.monotonic() - self.started, 2),
+                          total_seconds=round(self.previous_seconds + time.monotonic() - self.started, 2))
         atomic_json(self.folder / "status.json", self.state)
 
     def metric(self, row):
@@ -66,7 +70,8 @@ class TrainingJournal:
         torch.save(payload, temporary)
         temporary.replace(self.folder / "latest.pt")
         self.update(checkpoint_epoch=payload["epoch"],
-                    checkpoint_step=payload.get("global_step", 0))
+                    checkpoint_step=payload.get("global_step", 0), checkpoint_batch=payload.get("batch"),
+                    checkpoint_epoch_complete=payload.get("epoch_complete", True))
 
     def close(self):
         self.lock.close()
@@ -109,7 +114,8 @@ class TrainingMonitor:
         checkpoint = folder / "latest.pt"
         return {**state, "id": run_id, "checkpoint": (
             {"revision": checkpoint_revision(checkpoint),
-             "epoch": state.get("checkpoint_epoch"), "step": state.get("checkpoint_step")}
+             "epoch": state.get("checkpoint_epoch"), "step": state.get("checkpoint_step"),
+             "batch": state.get("checkpoint_batch"), "epoch_complete": state.get("checkpoint_epoch_complete", True)}
             if checkpoint.is_file() else None)}
 
     def episodes(self):
