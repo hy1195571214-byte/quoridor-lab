@@ -19,6 +19,8 @@ def allowed(path):
         return False
     if rel.parts[:3] == ("training", "data", "datasets"):
         return path.suffix in {".md", ".json"} and path.name != "active-dataset.json"
+    if rel.parts[:3] == ("training", "data", "training-runs"):
+        return False
     return ".sqlite3" not in path.name and path.suffix not in {".pyc", ".pt", ".pth", ".log", ".zip"}
 
 
