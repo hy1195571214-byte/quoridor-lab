@@ -34,6 +34,8 @@ def main():
     p.add_argument("--resume", action="store_true")
     p = sub.choices["serve"]
     p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--training-dir", help="Training run folders written by train_monitored.py --run-dir")
+    p.add_argument("--training-corpus", help="Frozen episode JSONL for the training replay dashboard")
     args = parser.parse_args()
     remote_sides = None
     if args.command == "collect" and (args.red_difficulty or args.blue_difficulty):
@@ -60,7 +62,9 @@ def main():
         else:
             import uvicorn
             from .api import create_app
-            uvicorn.run(create_app(remote), host="127.0.0.1", port=args.port)
+            uvicorn.run(create_app(remote, training_dir=args.training_dir,
+                                   training_corpus=args.training_corpus),
+                        host="127.0.0.1", port=args.port)
     except RemoteError as error:
         print(json.dumps({"error": error.kind, "message": str(error),
                           "retryable": error.retryable}, ensure_ascii=False))

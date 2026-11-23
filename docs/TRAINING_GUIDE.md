@@ -2,11 +2,43 @@
 
 ## 目标与当前路线
 
-更新日期为 2026-11-15。先整理专家棋谱，以监督模仿学习中的行为克隆预训练策略网络，完成独立对战评估，再继承策略权重做强化学习微调。主要流程参考 P8 AlphaGo（2016），PPO 的具体更新依据 P2、P3。[实施指南](../references/EXPERIMENT_METHODS.md) · [P8 研读笔记](../references/summaries/08_ALPHAGO_2016.md)
+更新日期为 2026-11-23。先整理专家棋谱，以监督模仿学习中的行为克隆预训练策略网络，完成独立对战评估，再继承策略权重做强化学习微调。主要流程参考 P8 AlphaGo（2016），PPO 的具体更新依据 P2、P3。[实施指南](../references/EXPERIMENT_METHODS.md) · [P8 研读笔记](../references/summaries/08_ALPHAGO_2016.md)
 
-用户报告两台电脑正在采集 master 对 master、master 对 expert。数据导入后记录实际规模、难度分布、重复和质量，历史 26 条专家动作样例继续用于流程检查。首版建议使用 master 行动作为主要示范，expert 行动独立保留。
+当前默认训练语料为 `round2-cpp208k-v1`：保留上一版冻结的 2,500 盘，新增逐盘重放检查后的 QuoridorCPP PGN 208,359 盘，合计 210,859 盘、8,199,006 手。新增来源移除了 4 份完整走法重复记录，隔离了 256 份尚未到达终点的记录。Master 对 Master 与 Master 对 Expert 两个已知批次继续排除。PGN 的玩家身份和档位未知。[合并数据、划分与启动说明](COMBINED_TRAINING_DATA.md) · [训练数据选择清单](../training/data/datasets/training-selection.json)
+
+第一轮的 2,500 盘清单及原有划分保留不变。新版本分为 168,730 盘训练、20,848 盘验证和 21,281 盘测试，完整走法及其左右镜像没有跨分区；跨分区重复局面仍待专门统计。当前训练入口默认读取 `active-dataset.json`，大语料采用分批生成样本，不一次装入全部浮点数组。本次数据导入没有启动正式训练。原基线的网络、超参数、模型恢复和评估预算见 [第一轮训练方案](ROUND1_TRAINING_PLAN.md)。
 
 专家行动用于监督学习，采集完的示范可在预训练中多轮使用。后续 PPO 微调根据当前策略新产生的经历更新。双方合计 256 次单方行动的截断上限沿用已确定设置。
+
+## 实时训练看板与棋谱回放
+
+当前入口 `python -m quoridor_lab.supervised` 默认读取已选中的冻结清单，支持 MLP/CNN32、合法动作掩码、AdamW、学习率调度、早停、完整检查点恢复和大语料流式读取。`examples/train_monitored.py` 为包装入口。下方各节的 `train_imitation.py` 为原有逐步数据示例，两种入口分别保留。新语料的本机启动命令见[合并数据说明](COMBINED_TRAINING_DATA.md)。
+
+在 `training/` 目录启动本地 API。
+
+```bash
+.venv/bin/python -m quoridor_lab serve --training-dir data/training-runs
+```
+
+另一个终端在 `frontend/` 目录执行 `npm run dev -- --port 4173`，访问 <http://127.0.0.1:4173/training>。训练入口将进度自动写入同一目录。
+
+```bash
+# 仅验证联通。每个分区最多 64 个逐步样本，页面标记为试运行。
+.venv/bin/python examples/train_monitored.py \
+  --run-dir data/training-runs/cnn32-smoke \
+  --architecture cnn32 --epochs 2 --sample-limit 64
+
+# 正式训练命令，启动前完成方案中的数据审计和评价准备。
+.venv/bin/python examples/train_monitored.py \
+  --run-dir data/training-runs/cnn32-seed0 \
+  --architecture cnn32 --seed 0 --epochs 40 --batch-size 256
+```
+
+训练样本按批次抽样，看板跟随最近报告的样本及其落子前局面。关闭“跟随训练样本”即可手动选择训练或验证棋谱、拖动步数、播放原谱，并查看下一手 Top-3 概率。预测读取最近一次完成保存的 epoch 检查点，界面注明它的轮次；同一检查点交替预测双方共最多 8 手，用“播放模型预测”查看。它表示策略网络的贪心续走，不能解释为搜索主变化或胜率。
+
+“在完整回放中打开预测分支”将整盘原谱保留为主线，将预测附为变化分支，并停在当前展示的步数。预测响应核对检查点版本和局面，跨版本结果不会显示在当前棋盘。看板只提供训练和验证棋谱，保留测试分区不通过这些接口展示。
+
+每次运行产生 `status.json`、`latest.pt` 和 `best.pt`。同一运行目录只允许一个训练写入者；恢复时使用相同架构、种子及样本选择，附加 `--resume`。`--warm-start path/to/best.pt` 在新目录继承权重并建立新的优化器。当前已实现验证 NLL、Top-1/Top-3 和棋子/墙预测准确率，方案中的完整分项指标、跨分区观察审计与固定对手实战评估仍待补齐。小样本联通结果不作为正式棋力成绩。
 
 ## 1. 安装并检查
 
@@ -43,9 +75,9 @@ python3.11 -m venv .venv
 
 一条监督示范包含当前局面、合法行动集合和该行动方实际选择的行动。联合逐步与整盘文件，按棋局 ID、步序和公共规则重放，检查观察、行动、掩码和结果。
 
-现有脚本筛选 `is_teacher=true` 且 `source` 以 `barricade:` 开头的记录。双远端采集会把双方均标为示范，master 对 expert 的双方都会通过当前筛选。正式导入需要根据逐步 `metadata.difficulty` 和来源选择难度，核对 `player` 及棋局的 `config.remote_sides`。
+现有脚本筛选 `is_teacher=true` 且 `source` 以 `barricade:` 开头的记录。这个通用条件也能匹配 Master 行动，因此构建正式输入时须按训练数据选择清单选取来源，核对逐步 `metadata.difficulty`、`player` 和整局 `config.remote_sides`。公开 PGN 的原始来源标签须随格式转换保留，教师导入适配仍待实现。
 
-首版 master 主集包含 master 对 master 双方，以及 master 对 expert 中的 master 方。expert 行动保留独立标签用于后续混合示范实验。记录胜方与负方示范的数量，按规则校验与来源质量制定选择策略。
+首版比较 Expert 对 Expert 与公开 PGN 的独立训练结果，再比较组合效果。训练输入使用按完整走法去重的棋谱，记录来源及双方胜负分布。训练选择清单记录当前决策，导入代码需显式执行该清单的来源筛选。
 
 采集说明记录了异常 `e2` 应手，其中恰好合法的回复可能进入数据。将拒绝、重试和暂缓日志与批次一起保存，抽查采样窗口和代表棋谱，登记质量限制。
 

@@ -1,0 +1,19 @@
+{
+  "source_url": "https://huggingface.co/datasets/KibleLab/Quoridor-Zero/blob/main/quoridorCPP%2020260614121829%20208K.zip",
+  "download_url": "https://hf-mirror.com/datasets/KibleLab/Quoridor-Zero/resolve/main/quoridorCPP%2020260614121829%20208K.zip",
+  "source_commit": "36767fdccfcc9f34cc6a4d58cfc2b524e404d4bf",
+  "sha256": "1b63b071f8648765ef172519abba161d4f9b63402c7367d69e654ae3a9700e00",
+  "archive_size_bytes": 1949662481,
+  "zip_crc_passed": true,
+  "zip_entries": 1251735,
+  "uncompressed_size_bytes": 69538091206,
+  "file_extensions": {
+    "": 8,
+    ".DS_Store": 4,
+    ".history": 417242,
+    ".tsv": 417238,
+    ".pgn": 417238
+  },
+  "license_on_source_page": "unknown",
+  "game_count_status": "208K is the package label. Actual records and legality remain unverified."
+}

@@ -1,0 +1,166 @@
+{
+  "inspected_at": "2026-11-23",
+  "source_url": "https://huggingface.co/datasets/KibleLab/Quoridor-Zero/blob/main/quoridorGG%20data%20API%20PGN%205K.zip",
+  "download_url_used": "https://hf-mirror.com/datasets/KibleLab/Quoridor-Zero/resolve/main/quoridorGG%20data%20API%20PGN%205K.zip",
+  "archive_sha256": "d5d7cbf630272ccbca6848f3f58be966213966b80a27b33c4d7705280fb7746a",
+  "archive_size_bytes": 4450702,
+  "archive_crc_passed": true,
+  "license_on_dataset_page": "unknown",
+  "pgn_files": 5725,
+  "legal_games": 5725,
+  "invalid_games": 0,
+  "invalid_examples": [],
+  "plies": 335884,
+  "winner_counts": {
+    "red": 4421,
+    "blue": 1303,
+    "unfinished_or_unknown": 1
+  },
+  "distinct_move_sequences": 2213,
+  "duplicate_episodes": 3512,
+  "distinct_positions_without_ply_plane": 52977,
+  "distinct_position_action_pairs_without_ply_plane": 55103,
+  "unique_plies": 124409,
+  "unique_winner_counts": {
+    "red": 1286,
+    "blue": 926,
+    "unfinished_or_unknown": 1
+  },
+  "unique_goal_games": 2212,
+  "unique_goal_plies": 124380,
+  "ply_count": {
+    "min": 29,
+    "median": 61,
+    "max": 108
+  },
+  "move_types": {
+    "move": 228071,
+    "h": 76541,
+    "v": 31272
+  },
+  "most_common_openings_first_four_plies": [
+    {
+      "moves": [
+        "e2",
+        "e8",
+        "e3",
+        "e7"
+      ],
+      "games": 5674
+    },
+    {
+      "moves": [
+        "e2",
+        "e8",
+        "e3",
+        "hd3"
+      ],
+      "games": 5
+    },
+    {
+      "moves": [
+        "e2",
+        "e8",
+        "e3",
+        "vh2"
+      ],
+      "games": 2
+    },
+    {
+      "moves": [
+        "e2",
+        "e8",
+        "e3",
+        "he3"
+      ],
+      "games": 2
+    },
+    {
+      "moves": [
+        "e2",
+        "hf7",
+        "e3",
+        "e8"
+      ],
+      "games": 2
+    }
+  ],
+  "largest_duplicate_groups": [
+    {
+      "games": 377,
+      "plies": 63,
+      "winner": 1
+    },
+    {
+      "games": 269,
+      "plies": 63,
+      "winner": 1
+    },
+    {
+      "games": 104,
+      "plies": 61,
+      "winner": 1
+    },
+    {
+      "games": 98,
+      "plies": 61,
+      "winner": 1
+    },
+    {
+      "games": 89,
+      "plies": 63,
+      "winner": 1
+    },
+    {
+      "games": 70,
+      "plies": 63,
+      "winner": 1
+    },
+    {
+      "games": 66,
+      "plies": 63,
+      "winner": 1
+    },
+    {
+      "games": 45,
+      "plies": 52,
+      "winner": 2
+    },
+    {
+      "games": 45,
+      "plies": 63,
+      "winner": 1
+    },
+    {
+      "games": 43,
+      "plies": 63,
+      "winner": 1
+    }
+  ],
+  "overlap_full_sequences_with_existing_data": {
+    "master_vs_master_3000": 0,
+    "master_vs_expert_500": 0,
+    "expert_vs_expert_1000": 0
+  },
+  "limitations": [
+    "PGN contents contain only numbered moves. Players, ratings, human/AI origin and original outcomes are unavailable.",
+    "Winner labels in derived JSONL are inferred only when a pawn reaches its goal under project rules.",
+    "Package name 5K is nominal. Counts above come from the downloaded PGN files.",
+    "Legal records do not establish move quality or expert playing strength.",
+    "Duplicate full trajectories must stay within the same train/validation/test split."
+  ],
+  "files": {
+    "episodes.jsonl": {
+      "size_bytes": 9380497,
+      "sha256": "efa9659a326f6d08c4d5cca22fc33ba7a4de67a915ebd1744bb74a563440993c"
+    },
+    "unique-episodes.jsonl": {
+      "size_bytes": 3528998,
+      "sha256": "513423cf524ab450d99c72fc7b86a067fb5c3e8cec84eab39b59ce15d1a7ad69"
+    },
+    "unique-goal-episodes.jsonl": {
+      "size_bytes": 3527887,
+      "sha256": "f77029b7c741a95b70602d1110fab3bf7f6cd5460945affe1b0859608a8a4a64"
+    }
+  }
+}

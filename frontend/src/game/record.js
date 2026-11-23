@@ -99,6 +99,29 @@ export function createRecord(moves = [], result = null, variations = []) {
   return parseRecord({ moves, result, variations });
 }
 
+/** Optional deep links use ply as the number of actions already played. */
+export function replaySelection(record, search = "") {
+  const params = new URLSearchParams(search);
+  const fallback = {
+    cursor: record.moves.length - 1,
+    branchId: record.variations.length ? record.variations.length - 1 : null,
+    branchCursor: (record.variations.at(-1)?.moves.length ?? 0) - 1,
+  };
+  if (!/^\d+$/.test(params.get("ply") ?? "")) return fallback;
+  const ply = Number(params.get("ply"));
+  const branchValue = params.get("branch");
+  if (/^\d+$/.test(branchValue ?? "")) {
+    const branchId = Number(branchValue);
+    const branch = record.variations[branchId];
+    if (branch) return {
+      cursor: branch.anchor, branchId,
+      branchCursor: Math.max(-1, Math.min(branch.moves.length - 1, ply - branch.anchor - 2)),
+    };
+  }
+  return { cursor: Math.max(-1, Math.min(record.moves.length - 1, ply - 1)),
+    branchId: null, branchCursor: -1 };
+}
+
 /** Original links use LZ-String URI-compressed comma-delimited notation. */
 export function encodeShare(input) {
   const record = parseRecord(input);

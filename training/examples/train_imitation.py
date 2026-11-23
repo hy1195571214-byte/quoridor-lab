@@ -7,10 +7,7 @@ import random
 import numpy as np
 import torch
 from torch import nn
-
-
-def network():
-    return nn.Sequential(nn.Flatten(), nn.Linear(8 * 9 * 9, 256), nn.ReLU(), nn.Linear(256, 209))
+from quoridor_lab.learning import network
 
 
 def main():

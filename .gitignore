@@ -15,6 +15,24 @@
 **/*.pth
 training/data/collection/
 training/data/expert-learning/
+training/data/training-runs/
+training/data/datasets/**
+!training/data/datasets/**/
+!training/data/datasets/**/*.md
+!training/data/datasets/**/sources.json
+!training/data/datasets/**/audit-summary.json
+!training/data/datasets/**/inspection.json
+!training/data/datasets/**/manifest.json
+!training/data/datasets/**/experiment.json
+!training/data/datasets/**/pgn-preliminary-audit.json
+!training/data/datasets/**/combined-dataset-acceptance.json
+!training/data/datasets/training-selection.json
+!training/data/datasets/release.json
+!training/data/datasets/active-dataset.example.json
+!training/data/datasets/round1-2500/episodes.jsonl
+!training/data/datasets/expert-vs-expert-1000-e2-v3/deduplicated/episodes.jsonl
+!training/data/datasets/quoridorgg-pgn-5k/unique-goal-episodes.jsonl
+training/data/datasets/round2-cpp208k-v1
 
 **/node_modules/
 .playwright-cli/

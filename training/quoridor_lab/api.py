@@ -1,6 +1,7 @@
 """Loopback REST facade for notebooks and model code. No browser is needed."""
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from pathlib import Path
 import threading
 import uuid
 
@@ -37,7 +38,7 @@ class Session:
     lock: threading.RLock = field(default_factory=threading.RLock)
 
 
-def create_app(remote=None, agents=None, record_dir=None):
+def create_app(remote=None, agents=None, record_dir=None, training_dir=None, training_corpus=None):
     remote = remote or RemoteExpert()
     sessions = {}
     sessions_lock = threading.RLock()
@@ -60,6 +61,14 @@ def create_app(remote=None, agents=None, record_dir=None):
                        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
                        allow_methods=["GET", "POST", "PUT", "DELETE"], allow_headers=["Content-Type"])
     records = RecordStore(record_dir or remote.data_dir)
+    from .training_monitor import TrainingMonitor, install_training_routes
+    from .dataset_paths import default_manifest
+    from .training_control import TrainingController, install_control_routes
+    install_training_routes(app, TrainingMonitor(
+        training_dir or Path(remote.data_dir) / "training-runs",
+        training_corpus or default_manifest().with_name("episodes.jsonl"),
+    ))
+    install_control_routes(app, TrainingController(training_dir or Path(remote.data_dir) / "training-runs"))
 
     @app.get("/records")
     def list_records():

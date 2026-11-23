@@ -1,0 +1,15 @@
+{
+  "version": "round2-cpp208k-v1",
+  "episodes": 210859,
+  "plies": 8199006,
+  "splits": {
+    "train": 168730,
+    "validation": 20848,
+    "test": 21281
+  },
+  "manifest_sha256": "0da4eff566394b281bfef31c81fc056960ab165ec61b74042a532ba1ed3a9976",
+  "corpus_sha256": "c75e25eb7e938413233ab30ef1463f01aa520da26a90d3270b1786baf9d22562",
+  "manifest": "round2-cpp208k-v1/manifest.json",
+  "corpus": "round2-cpp208k-v1/episodes.jsonl",
+  "default_data_mode": "auto"
+}

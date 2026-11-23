@@ -1,0 +1,156 @@
+{
+  "status": "planned",
+  "experiment_id": "round1-2500-v1",
+  "stage": "behavior_cloning",
+  "data": {
+    "manifest": "data/datasets/round1-2500/manifest.json",
+    "manifest_sha256": "b106e68a1d4ade634c4093b9faa9235e0e594923ae28e6a74a8a7341a72a9f3e",
+    "episodes": "data/datasets/round1-2500/episodes.jsonl",
+    "games": 2500,
+    "plies": 140023,
+    "train_games": 2000,
+    "validation_games": 250,
+    "test_games": 250,
+    "sample_seed": 0,
+    "grouping": [
+      "exact_trajectory",
+      "left_right_reflected_trajectory"
+    ],
+    "unknown_pgn_difficulty": true
+  },
+  "encoding": {
+    "version": "existing-absolute-8x9x9-v1",
+    "shape": [
+      8,
+      9,
+      9
+    ],
+    "action_count": 209,
+    "max_plies": 256,
+    "mask_during_training": true,
+    "mask_during_evaluation": true,
+    "dtype": "float32",
+    "augmentation": "none"
+  },
+  "models": {
+    "mlp": {
+      "parameters": 219857,
+      "seeds": [
+        0
+      ],
+      "role": "exploratory_baseline"
+    },
+    "cnn32": {
+      "parameters": 562769,
+      "seeds": [
+        0,
+        1,
+        2
+      ],
+      "convolutions": 3,
+      "channels": 32,
+      "kernel_size": 3,
+      "padding": 1,
+      "role": "primary"
+    }
+  },
+  "optimization": {
+    "optimizer": "AdamW",
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001,
+    "batch_size": 256,
+    "max_epochs_per_run": 40,
+    "total_max_epochs_all_runs": 160,
+    "gradient_clip_norm": 1.0,
+    "loss": "masked_cross_entropy",
+    "scheduler": {
+      "name": "ReduceLROnPlateau",
+      "monitor": "validation_cross_entropy",
+      "mode": "min",
+      "factor": 0.5,
+      "patience": 3,
+      "threshold": 0.0001,
+      "threshold_mode": "abs",
+      "min_learning_rate": 1e-05
+    },
+    "early_stopping": {
+      "monitor": "validation_cross_entropy",
+      "mode": "min",
+      "patience": 8,
+      "minimum_improvement": 0.0001
+    },
+    "checkpoint_selection": "minimum_validation_cross_entropy",
+    "device": "auto_probe_at_start"
+  },
+  "evaluation": {
+    "max_plies": 256,
+    "policy": "argmax_after_mask",
+    "offline_metrics": [
+      "cross_entropy",
+      "top1",
+      "top3",
+      "pawn_move_accuracy",
+      "horizontal_wall_accuracy",
+      "vertical_wall_accuracy",
+      "source_metrics",
+      "acting_player_metrics",
+      "unseen_observation_metrics"
+    ],
+    "opponents": [
+      "local:random",
+      "local:shortest"
+    ],
+    "opening": "standard",
+    "development": {
+      "epoch_interval": 5,
+      "include_untrained_models": true,
+      "games_per_opponent": 40,
+      "games_per_player_per_opponent": 20,
+      "opponent_seed_start": 10000
+    },
+    "final": {
+      "games_per_opponent": 200,
+      "games_per_player_per_opponent": 100,
+      "games_per_model": 400,
+      "opponent_seed_start": 20000,
+      "heldout_offline_episodes": 250
+    },
+    "report_outcomes": [
+      "win",
+      "loss",
+      "truncated",
+      "error"
+    ],
+    "win_rate_denominator": "all_planned_games",
+    "score_rate": "(wins+0.5*truncations)/all_planned_games; errors receive zero",
+    "interval": "Wilson 95% for win rate, descriptive under the fixed standard-opening protocol"
+  },
+  "checkpoint_contents": [
+    "architecture",
+    "encoding_version",
+    "state_dict",
+    "optimizer_state",
+    "scheduler_state",
+    "epoch",
+    "global_step",
+    "best_validation_metric",
+    "early_stopping_counter",
+    "random_states",
+    "data_manifest_sha256"
+  ],
+  "resume_boundary": "end_of_epoch",
+  "literature": {
+    "P8": "supervised_policy_pretraining_and_later_weight_transfer",
+    "P3": "action_masking_reference",
+    "P4": "experiment_design_and_holdout_protocol",
+    "P6": "independent_run_variation"
+  },
+  "initial_hyperparameter_provenance": "Project proposal based on current corpus and implementation. Exact settings are not prescribed by the cited papers.",
+  "implementation_pending": [
+    "source_aware_episode_to_tensor_import",
+    "explicit_frozen_split_loader",
+    "cnn_architecture_and_checkpoint_loader",
+    "optimizer_scheduler_and_rng_resume",
+    "offline_and_match_evaluation"
+  ]
+}
