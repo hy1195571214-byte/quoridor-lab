@@ -1,0 +1,7 @@
+matchup,game_index,swap_colors,red,blue,result,plies,illegal_moves,red_avg_latency,blue_avg_latency,red_plies,blue_plies
+easy_vs_medium,0,False,easy,medium,red,47,0,0.000291,0.35315,24,23
+easy_vs_medium,0,True,medium,easy,blue,48,0,0.320676,0.000261,24,24
+easy_vs_hard,0,False,easy,hard,red,87,0,0.000292,1.295271,44,43
+easy_vs_hard,0,True,hard,easy,blue,40,0,1.926736,0.000244,20,20
+medium_vs_hard,0,False,medium,hard,draw,256,0,0.63992,2.003967,128,128
+medium_vs_hard,0,True,hard,medium,draw,256,0,2.002928,0.599892,128,128

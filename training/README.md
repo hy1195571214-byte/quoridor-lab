@@ -124,7 +124,7 @@ PYTHONPATH=training training/.venv/bin/python training/examples/serve_custom_age
 三档难度两两对战基线（默认每组 20 局并交换先后手）：
 
 ```bash
-PYTHONPATH=training training/.venv/bin/python training/examples/search_baseline.py --games 20 --output data/search_baseline
+PYTHONPATH=training training/.venv/bin/python training/examples/run_search_baseline.py --games 20 --output data/search_baseline
 ```
 
 输出 `baseline_<时间>.csv`、`*_steps.jsonl`（每步耗时）与 JSON 摘要。

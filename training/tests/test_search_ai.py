@@ -2,7 +2,7 @@ import math
 import time
 import unittest
 
-from quoridor_lab.rules import State
+from quoridor_lab.rules import Action, State
 import tempfile
 
 from fastapi.testclient import TestClient
@@ -63,15 +63,24 @@ class SearchAgentTests(unittest.TestCase):
 
     def test_search_http_contract(self):
         with tempfile.TemporaryDirectory() as folder:
-            agents = {"search": SearchAgent("easy")}
+            agents = {
+                "search_medium": SearchAgent("medium"),
+                "search_hard": SearchAgent("hard"),
+            }
             with TestClient(create_app(RemoteExpert(data_dir=folder), agents=agents)) as client:
-                response = client.post("/agents/search/move", json={"moves": ["e2"]})
-                self.assertEqual(response.status_code, 200)
-                body = response.json()
-                self.assertIn("action_id", body)
-                self.assertIn("notation", body)
-                self.assertTrue(body["source"].startswith("search:"))
-                self.assertGreaterEqual(body["latency_seconds"], 0.0)
+                for agent_id in ("search_medium", "search_hard"):
+                    response = client.post(f"/agents/{agent_id}/move", json={"moves": ["e2"]})
+                    self.assertEqual(response.status_code, 200, agent_id)
+                    body = response.json()
+                    st = State.from_moves(["e2"])
+                    self.assertIsNone(st.error(Action.from_id(body["action_id"])))
+                    self.assertIn("notation", body)
+                    self.assertTrue(body["source"].startswith("search:"))
+                    self.assertGreaterEqual(body["latency_seconds"], 0.0)
+
+    def test_easy_is_greedy_not_minimax(self):
+        decision = SearchAgent("easy", seed=0).choose(State())
+        self.assertEqual(decision.metadata.get("mode"), "greedy")
 
 
 if __name__ == "__main__":
