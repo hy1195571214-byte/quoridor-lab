@@ -1,0 +1,7 @@
+matchup,game_index,swap_colors,red,blue,winner,plies,truncated,illegal_moves,total_latency_seconds,wall_clock_seconds
+easy_vs_medium,0,False,easy,medium,red,77,False,0,4.755697830347344,4.756622076034546
+easy_vs_medium,0,True,medium,easy,red,63,False,0,3.9145896652480587,3.915311813354492
+easy_vs_hard,0,False,easy,hard,red,83,False,0,45.0766632448649,45.077444076538086
+easy_vs_hard,0,True,hard,easy,red,71,False,0,45.35995937301777,45.36064696311951
+medium_vs_hard,0,False,medium,hard,blue,40,False,0,43.46372016891837,43.46416401863098
+medium_vs_hard,0,True,hard,medium,blue,76,False,0,52.60661816340871,52.60741305351257

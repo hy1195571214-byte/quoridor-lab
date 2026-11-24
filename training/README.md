@@ -110,6 +110,29 @@ python -m quoridor_lab collect --red-difficulty expert --blue-difficulty hard --
 
 `--policy` 是与专家对抗的本地采集策略，可选 `shortest` 和 `random`。默认策略只沿最短路径走棋，不能代表一个强搜索 AI。更强的自定义策略可以直接接入 `QuoridorEnv.step()`；不同采集策略会产生不同分布的训练局面。
 
+### 搜索型 AI（Minimax）
+
+实现位于 `quoridor_lab/search.py`，对外类为 `SearchAgent`，与 `LocalPolicy` 一样提供 `choose(state) -> Decision`。
+
+```bash
+PYTHONPATH=training training/.venv/bin/python training/examples/serve_custom_agent.py \
+  --port 8765 --data-dir ./handoff-local-data
+```
+
+浏览器将「搜索型 AI」指向 `http://127.0.0.1:8765/agents/search/move`。三档难度注册为 `search_easy`、`search_medium`、`search_hard`。
+
+三档难度两两对战基线（默认每组 20 局并交换先后手）：
+
+```bash
+PYTHONPATH=training training/.venv/bin/python training/examples/run_search_baseline.py --games 20 --output data/search_baseline
+```
+
+默认使用 seed 生成 4 步合法走棋开局，每组开局交换先后手，避免确定性策略从同一局面反复产生相同棋谱。`--seed` 控制开局和随机策略；`--opening-plies 0` 可从标准初始局面开始，但这时重复对局不增加独立样本。
+
+困难档默认每步限时 2 秒，完成深度可能随机器速度变化；需要复现实验决策时使用 `--hard-time-limit-seconds 0` 禁用限时。`--max-plies` 默认 256，达到上限标记为 `truncated`，胜率只统计已完成对局，并单独报告截断数量。
+
+输出 `search_baseline_<时间>.csv`（种子、开局和完整棋谱）、`*_steps.jsonl`（每步动作、耗时及搜索元数据）与 JSON 摘要。结果只描述所用开局下的表现，不能仅凭冒烟测试证明三档棋力递增。`data/search_baseline_smoke/`、`data/search_baseline/` 中已有的报告来自修复评分前的历史实现，不作为当前版本的棋力证据。
+
 - `--expert-side alternate` 交换专家先后手，也可固定 `1` 或 `2`。
 - 所有官网调用串行执行，默认至少间隔 1 秒。同一输出目录一次运行一个采集进程。
 - 设备 ID 保存在 `data/device-id.txt`，持续复用；不读取浏览器账号或轮换身份。
