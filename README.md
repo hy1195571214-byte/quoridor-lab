@@ -6,9 +6,13 @@
 
 ## 模型训练路线
 
-本地训练看板现已支持手动启动和实时批次进度。默认冻结语料为 **210,859 盘**，完整训练/验证数据和 **21,281 盘测试集**已准备为 [GitHub 数据发布](https://github.com/hy1195571214-byte/quoridor-lab/releases/tag/training-data-2026-11-23) 附件。克隆后执行 `python training/examples/install_training_data.py` 下载并校验相同划分；安装数据不会启动训练。[数据与使用说明](docs/COMBINED_TRAINING_DATA.md)
+1. 用本地搜索 AI 生成示范，暖启动 MLP 和 CNN，再与分级搜索对手进行 Maskable PPO 对练。
+2. 冻结两种 PPO 模型的权重，在推理时加入 MCTS，比较棋力增益和决策耗时。
+3. 用 MCTS 自我对弈产生训练目标，分别进行 MLP 和 CNN 的 AlphaZero-style 训练。
 
-先将专家棋谱用于行为克隆预训练，再通过新对局继承权重做强化学习微调。用户正在两台电脑采集 master 对 master、master 对 expert，数据导入时检查难度标签、重复、异常应手和固定划分。当前保留监督训练与 REINFORCE 示例，PPO 和持续训练监控按后续适配推进。实验沿用双方合计 256 次行动上限。[实施指南](references/EXPERIMENT_METHODS.md) · [训练操作说明](docs/TRAINING_GUIDE.md) · [Reference](references/README.md)
+统一 Arena 以 Elo 为主要棋力指标。当前仓库已有本地搜索对手、棋谱监督训练及 REINFORCE 示例。新阶段的配置、实现状态和评估协议见 [三阶段训练流程](docs/TRAINING_GUIDE.md)。
+
+历史棋谱看板继续支持手动启动和恢复。用于复现的 210,859 盘冻结语料可从 [GitHub 数据发布](https://github.com/hy1195571214-byte/quoridor-lab/releases/tag/training-data-2026-11-23) 安装，见 [数据说明](docs/COMBINED_TRAINING_DATA.md)。
 
 ## 网页启动
 
