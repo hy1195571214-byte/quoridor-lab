@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowTopRightOnSquareIcon, ChevronLeftIcon, ChevronRightIcon,
   PauseIcon, PlayIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import Board from "./Board.jsx";
+import Phase1Training from "./Phase1Training.jsx";
 import TrainingStartPanel from "./TrainingStartPanel.jsx";
 import TrainingProgress from "./TrainingProgress.jsx";
+import TrainingRoadmap from "./TrainingRoadmap.jsx";
 import { replay } from "../game/rules.js";
 import { chooseTrainingRun, trainingReplayUrl, validatePrediction } from "../game/training.js";
 import { useLanguage } from "../i18n.jsx";
@@ -43,7 +45,13 @@ function LossChart({ rows, label }) {
 export default function TrainingDashboard({ navigate }) {
   const { t } = useLanguage();
   const [runs, setRuns] = useState([]);
-  const [runId, setRunId] = useState("");
+  const [phase1Demonstrations, setPhase1Demonstrations] = useState([]);
+  const [runId, setRunId] = useState(() => {
+    const url = location.protocol === "file:"
+      ? new URL(location.hash.slice(1) || "/", "http://localhost")
+      : new URL(location.href);
+    return url.searchParams.get("run") || "";
+  });
   const [run, setRun] = useState(null);
   const [connectionError, setConnectionError] = useState("");
   const [resuming, setResuming] = useState(false);
@@ -68,7 +76,8 @@ export default function TrainingDashboard({ navigate }) {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const predictionRequest = useRef(0);
-  const manualRunSelection = useRef(false);
+  const manualRunSelection = useRef(Boolean(runId));
+  const phase1Selected = runId.startsWith("phase1:");
   const revision = run?.id === runId ? run.checkpoint?.revision : null;
 
   useEffect(() => {
@@ -79,6 +88,7 @@ export default function TrainingDashboard({ navigate }) {
         const result = await request("/training/runs", controller.signal);
         if (controller.signal.aborted) return;
         setRuns(result.runs);
+        setPhase1Demonstrations(result.phase1_demonstrations ?? []);
         setConnectionError("");
         setRunId(previous => chooseTrainingRun(result.runs, previous, manualRunSelection.current));
       } catch (error) {
@@ -112,9 +122,10 @@ export default function TrainingDashboard({ navigate }) {
   }, [runId]);
 
   useEffect(() => {
+    if (phase1Selected || !runId) return;
     const controller = new AbortController();
     setEpisodeError("");
-    request(`/training/episodes?split=${split}&offset=${episodeOffset}&limit=200`, controller.signal).then(result => {
+    request(`/training/episodes?split=${split}&offset=${episodeOffset}&limit=200&run=${encodeURIComponent(runId)}`, controller.signal).then(result => {
       if (controller.signal.aborted) return;
       setEpisodes(result.episodes);
       setEpisodeTotal(result.total ?? result.episodes.length);
@@ -122,7 +133,7 @@ export default function TrainingDashboard({ navigate }) {
         ? previous : result.episodes[0]?.episode_id ?? "");
     }).catch(error => { if (error.name !== "AbortError") setEpisodeError(error.message); });
     return () => controller.abort();
-  }, [split, episodeOffset]);
+  }, [split, episodeOffset, phase1Selected, runId]);
 
   useEffect(() => {
     if (!follow || playing || !run?.sample) return;
@@ -134,9 +145,9 @@ export default function TrainingDashboard({ navigate }) {
   useEffect(() => {
     setEpisode(null);
     setPlaying(false);
-    if (!episodeId) return;
+    if (!episodeId || !runId || phase1Selected) return;
     const controller = new AbortController();
-    request(`/training/episodes/${encodeURIComponent(episodeId)}`, controller.signal).then(result => {
+    request(`/training/episodes/${encodeURIComponent(episodeId)}?run=${encodeURIComponent(runId)}`, controller.signal).then(result => {
       if (controller.signal.aborted) return;
       replay(result.moves);
       setEpisode(result);
@@ -144,7 +155,7 @@ export default function TrainingDashboard({ navigate }) {
       setPly(previous => Math.min(previous, result.moves.length));
     }).catch(error => { if (error.name !== "AbortError") setEpisodeError(error.message); });
     return () => controller.abort();
-  }, [episodeId]);
+  }, [episodeId, phase1Selected, runId]);
 
   const moves = useMemo(() => episode?.moves.slice(0, ply) ?? [], [episode, ply]);
   const positionKey = moves.join(",");
@@ -235,18 +246,36 @@ export default function TrainingDashboard({ navigate }) {
     else setPly(Math.max(0, Math.min(episode?.moves.length ?? 0, nextPly)));
   }
 
+  function selectRun(id) {
+    manualRunSelection.current = true;
+    setRunId(id);
+    setEpisodeId("");
+    setEpisodeOffset(0);
+    setPly(0);
+    setFollow(false);
+  }
+
+  const phase1Runs = runs.filter(item => item.kind === "phase1");
+  const historicalRuns = runs.filter(item => item.kind !== "phase1");
+
   return <main className="training-page with-sidebar">
     <header className="training-heading">
       <div><a href="/" onClick={event => { event.preventDefault(); navigate("/"); }}>Quoridor Lab</a>
         <h1>{t("训练看板")}{run?.is_smoke && <small className="training-smoke-label">{t("试运行")}</small>}</h1></div>
       <label className="training-run-select">{t("训练运行")}
-        <select value={runId} onChange={event => { manualRunSelection.current = true; setRunId(event.target.value); setFollow(false); }} disabled={!runs.length}>
+        <select value={runId} onChange={event => selectRun(event.target.value)} disabled={!runs.length}>
           {!runs.length && <option value="">{t("尚未开始训练")}</option>}
-          {runs.map(item => <option value={item.id} key={item.id}>{item.display_name ?? item.id}</option>)}
+          {[["Phase 1 · 本地搜索", phase1Runs], ["历史棋谱训练", historicalRuns]].map(([label, items]) => items.length > 0 &&
+            <optgroup key={label} label={t(label)}>{items.map(item => <option value={item.id} key={item.id}>
+              {item.display_name ?? item.id}
+            </option>)}</optgroup>)}
         </select>
       </label>
     </header>
     {connectionError && <p className="training-error" role="alert">{connectionError}</p>}
+    <div className="training-dashboard-layout">
+      <div className="training-dashboard-content">
+      {phase1Selected ? <Phase1Training run={run?.id === runId ? run : null} navigate={navigate} t={t} /> : <>
     {run?.error && run.status !== "stopped" && <p className="training-error" role="alert">{
       run.failure_reason === "data_unavailable" || run.error.includes("[Errno 5]")
         ? t("训练因数据读取中断而停止，请确认数据盘已连接。") : run.error
@@ -254,7 +283,7 @@ export default function TrainingDashboard({ navigate }) {
     {run?.checkpoint_error && <p className="training-error" role="alert">{t("最近一次保存未成功，继续时将使用上一次检查点。")}</p>}
     {interrupted && <div className="training-resume-panel">
       <p>{t(run.checkpoint ? "已保留最近保存的模型，点击后可继续训练。" : "这个运行没有保存模型，请在下方“新训练设置”中重新开始。")}</p>
-      {run.checkpoint && <button onClick={resumeTraining} disabled={resuming || runs.some(item => ["preparing", "training"].includes(item.status))}>{t(resuming ? "正在恢复…" : "继续训练")}</button>}
+      {run.checkpoint && <button onClick={resumeTraining} disabled={resuming || historicalRuns.some(item => ["preparing", "training"].includes(item.status))}>{t(resuming ? "正在恢复…" : "继续训练")}</button>}
     </div>}
     {resumeError && <p className="training-error" role="alert">{resumeError}</p>}
     {running && <div className="training-resume-panel">
@@ -271,7 +300,7 @@ export default function TrainingDashboard({ navigate }) {
           : t("第 {epoch} 轮", { epoch: run.checkpoint.epoch })
       ) : t(run?.checkpoint_every ? "完成首批后保存" : "此运行尚无保存模型")}</strong></div>
     </section>
-    <details className="training-launch-details" open={!runs.some(item => ["preparing", "training"].includes(item.status))}>
+    <details className="training-launch-details" open={!historicalRuns.some(item => ["preparing", "training"].includes(item.status))}>
       <summary>{t("新训练设置")}</summary>
       <TrainingStartPanel request={request} t={t} runState={runs.map(item => `${item.id}:${item.status}`).join(",")}
         onConfiguration={setTrainingConfig}
@@ -335,6 +364,10 @@ export default function TrainingDashboard({ navigate }) {
           <div><dt>{t("设备")}</dt><dd>{run?.device ?? "—"}</dd></div>
         </dl></section>
       </aside>
+    </div>
+      </>}
+      </div>
+      <TrainingRoadmap runs={runs} demonstrations={phase1Demonstrations} onSelectRun={selectRun} t={t} />
     </div>
   </main>;
 }

@@ -12,7 +12,7 @@
 
 ### Phase 1 · 搜索示范与在线 PPO
 
-1. 使用本地 `SearchAgent` 生成搜索示范。当前已有贪心 `easy` 和 Minimax/Alpha-Beta `medium`、`hard`，通过 `choose(state)` 返回实际走法。先以固定种子和合法开局配对交换先后手，校准档位、记录版本及搜索配置。可复用 [搜索对战脚本](../training/examples/run_search_baseline.py) 做对手校准。已有基线输出可供核对棋谱和逐步记录，供训练消费的示范导出与划分仍需接入。在仓库根目录运行以下命令，可先完成搜索对手的基线对战。
+1. 使用本地 `SearchAgent` 生成搜索示范。当前已有贪心 `easy` 和 Minimax/Alpha-Beta `medium`、`hard`，通过 `choose(state)` 返回实际走法。先以固定种子和合法开局配对交换先后手，校准档位、记录版本及搜索配置。可复用 [搜索对战脚本](../training/examples/run_search_baseline.py) 做对手校准。已有基线输出可供核对棋谱和逐步记录，第一阶段的示范生成器使用同一规则引擎，按成对开局分配训练与验证集。在仓库根目录运行以下命令，可先完成搜索对手的基线对战。
 
    ```bash
    PYTHONPATH=training training/.venv/bin/python training/examples/run_search_baseline.py \
@@ -41,7 +41,62 @@
 
 ### 实现顺序与当前状态
 
-仓库已有规则和合法动作掩码、`QuoridorEnv`、三档本地搜索对手、搜索基线、棋谱监督训练入口及 REINFORCE 示例。接入顺序为搜索示范导出与验证 → MLP/CNN 策略和价值网络及 Maskable PPO → 固定 Arena → MCTS 推理 → AlphaZero 自我对弈。正式训练与 Elo 结果以实际运行记录为准。PPO 方法与掩码依据见 [PPO 笔记](../references/summaries/02_PPO.md) 和 [参考资料](../references/README.md)。
+第一阶段已接入搜索示范生成、MLP/CNN32 模仿暖启动、在线 Maskable PPO 和先后手配对的开发评估。Level 1 使用固定对手和开局的本机 Arena，并记录相对 Elo。跨阶段的统一 Arena、MCTS 推理和 AlphaZero 自我对弈待接入。PPO 方法与掩码依据见 [PPO 笔记](../references/summaries/02_PPO.md) 和 [参考资料](../references/README.md)。
+
+在 `training/` 按下文准备 `.venv` 后，可从该目录启动新一批试跑。两种架构共享同一份搜索示范，分别保存配置、日志、棋谱与权重。
+
+```bash
+RUN_DIR=data/training-runs/phase1-pilot
+
+.venv/bin/python -m quoridor_lab.search_demonstrations --output "$RUN_DIR" --pairs 48 --workers 3
+
+.venv/bin/python -m quoridor_lab.train_phase1 --architecture mlp --seed 0 \
+  --demonstrations "$RUN_DIR/demonstrations.jsonl" --output "$RUN_DIR/mlp-seed0"
+
+.venv/bin/python -m quoridor_lab.train_phase1 --architecture cnn32 --seed 0 \
+  --demonstrations "$RUN_DIR/demonstrations.jsonl" --output "$RUN_DIR/cnn32-seed0"
+```
+
+默认先做 8 轮模仿学习，再做 8 次 PPO 更新，每次采集 2,048 个学习方行动。每次更新保存 `latest.pt`，模仿权重单独保存在 `warm_start.pt`。同一运行可用原参数、`--resume` 和更大的 `--updates` 继续。对局达到 256 手上限单独记作截断，训练将其作为有限时域的零奖励结尾。rollout 预算耗尽时仍活跃的对局使用下一学习状态的价值做 bootstrap。
+
+本机 2026-11-24 的首批试跑位于 `training/data/training-runs/phase1-search-20261124/`。MLP 和 CNN32 共用 96 局示范，训练 76 局、验证 20 局。两者均在 CPU 上完成 8 轮模仿学习和 8 次 PPO 更新，每个模型采集 16,384 个学习方行动。末次开发评估中，两种模型对 `easy` 和最短路对手各为 0 胜 8 负。结果记录在各运行的 `metrics.jsonl`，供检查训练链路及后续复现实验。
+
+### Level 1 正式训练
+
+从各自有效的本地 PPO 试跑检查点继承 MLP 和 CNN32 的模型与 Adam 状态，正式轮次重新计数。训练样本全部来自当前模型在线采集。对手池按配对开局分配，每 20 局包含 14 局深度 1 搜索、4 局 BFS 最短路、2 局随机化深度 1 搜索，每个配对内交换先后手。双方合计最多 256 手，胜、负奖励为 +1、−1，其他奖励为 0。
+
+每模型先训练 100 轮，每轮 2,048 个学习方有效动作。Batch Size 256，每批更新 5 轮，LR 0.0003，Gamma 0.99，GAE 0.95，Clip 0.2，Entropy 0.01，Value Coef 0.5，梯度裁剪 0.5。第 100 轮之后按最近的评估和 PPO 诊断逐项调整并记录，最多训练 500 轮。
+
+每 25 轮保存里程碑检查点，并对 Random、BFS、Level 1 搜索各评估 200 局。评估开局与训练开局及本地示范开局独立。每对手胜率分别须达到 95%、80%、70%，非法率须为 0，截断率须低于 5%。连续 3 次达标才保存 `qualified.pt`。`best.pt` 记录相对晋级门槛表现最佳的检查点，`REPORT.md` 报告每次评估、Elo、Loss、KL、Entropy 和实际吞吐。Elo 使用冻结的本机 Arena 锚点，BFS 固定为 1500。训练达到晋级条件或用完 500 轮预算后在 Level 1 结束。
+
+本机正式实验目录为 `training/data/training-runs/phase1-level1-20261125/`。已启动的模型由同一个训练看板显示。发生中断时，在 `training/` 目录用原参数从 `latest.pt` 继续，例如：
+
+```bash
+.venv/bin/python -m quoridor_lab.train_level1 \
+  --root data/training-runs/phase1-level1-20261125 \
+  --pilot data/training-runs/phase1-search-20261124 \
+  --architecture mlp --device cpu --threads 2 --lanes 64 --resume
+```
+
+两路继续训练时已改用 `--until-first-pass`。该模式保存在检查点中，之后恢复仍沿用。每 500 次 PPO 更新为一个单元，每 25 次照常评估。任一模型在一次正式评估中满足全部门槛后，即保存该轮 `qualified.pt` 并结束该模型的 Level 1，另一模型按自己的成绩继续。
+
+#### BFS 势函数奖励（PBRS）
+
+Level 1 的训练入口支持 `--pbrs-scale`。以学习方在当前墙布局下到目标边的 BFS 距离 `d(s)` 为参考，取势函数 `Φ(s) = −scale × d(s)`。一次学习方决策包含该步及对手回应，PPO 使用 `r′ = r + γΦ(s′) − Φ(s)`，其中 `γ` 与 GAE 使用的折扣率相同。自然终局和 256 手有限时域截断的下一状态势为 0。完整对局的附加折扣回报等于负的初始势，重复走动无法单靠塑形奖励增加整局回报。
+
+PBRS 参与计算价值目标和优势，PPO 更新网络参数。正式评估仍由模型选招，按实际胜负和截断计分。检查点和报告记录启用轮次与系数。旧检查点默认使用 `0`，已设置系数的检查点在续跑时会继承该值，显式传入 `--pbrs-scale 0` 可恢复基础奖励。
+
+当前把 `0.02` 作为 CNN32 的优先对照系数，MLP 保留基础奖励作为基线。这个选择来自同一检查点各更新 25 次的单种子对照，两组均使用约 35% 随机墙开局。CNN32 加入 PBRS 后对 Random 的胜率由 3% 升至 15%，截断率由 74% 降至 63%。MLP 相应由 16% 降至 8.5%，截断率由 63.5% 升至 70.5%。两路对照仍未达到 Random 的晋级门槛。
+
+从本机 CNN32 的 MPS 检查点续跑并启用 PBRS 的命令如下。
+
+```bash
+.venv/bin/python -m quoridor_lab.train_level1 \
+  --root data/training-runs/phase1-level1-20261125 \
+  --pilot data/training-runs/phase1-search-20261124 \
+  --architecture cnn32 --device mps --threads 2 --lanes 64 \
+  --resume --pbrs-scale 0.02
+```
 
 ## 历史棋谱训练操作
 

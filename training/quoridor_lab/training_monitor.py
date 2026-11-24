@@ -10,6 +10,7 @@ import time
 from fastapi import HTTPException, Query
 from pydantic import BaseModel, Field
 
+from .phase1_monitor import PREFIX, Phase1Monitor, writer_active
 from .rules import Action, State
 
 
@@ -111,6 +112,8 @@ class TrainingMonitor:
             state.pop("command", None)
         except (OSError, ValueError):
             raise HTTPException(503, "Training status is temporarily unavailable") from None
+        if status.is_file() and state.get("status") == "training" and writer_active(folder / ".writer.lock") is False:
+            state["status"] = "stopped"
         checkpoint = folder / "latest.pt"
         return {**state, "id": run_id, "checkpoint": (
             {"revision": checkpoint_revision(checkpoint),
@@ -170,6 +173,10 @@ class TrainingMonitor:
             if wrapper["split"] != row["split"] or wrapper["episode"]["episode_id"] != episode_id:
                 raise HTTPException(503, "Frozen corpus index no longer matches its episodes")
             return {**row, "moves": wrapper["episode"]["moves"]}
+
+    def run_corpus(self, run_id):
+        manifest = self.detail(run_id).get("dataset_manifest") if run_id else None
+        return Path(manifest).with_name("episodes.jsonl") if manifest else self.corpus
 
     def predict(self, run_id, query):
         try:
@@ -241,9 +248,20 @@ class TrainingMonitor:
 
 
 def install_training_routes(app, monitor):
+    phase1 = Phase1Monitor(monitor.runs_dir)
+    corpora = {monitor.corpus: monitor}
+    corpora_lock = threading.Lock()
+
+    def corpus_monitor(run_id):
+        corpus = monitor.run_corpus(run_id)
+        with corpora_lock:
+            if corpus not in corpora:
+                corpora[corpus] = TrainingMonitor(monitor.runs_dir, corpus)
+            return corpora[corpus]
+
     @app.get("/training/runs")
     def list_runs():
-        runs = []
+        runs = phase1.runs()
         for folder in sorted(monitor.runs_dir.glob("*")):
             if folder.is_dir() and any((folder / name).is_file() for name in ["status.json", "launch.json"]):
                 try:
@@ -252,10 +270,13 @@ def install_training_routes(app, monitor):
                     runs.append(detail)
                 except HTTPException:
                     continue
-        return {"runs": sorted(runs, key=lambda item: item.get("updated_at", ""), reverse=True)}
+        return {"runs": sorted(runs, key=lambda item: item.get("updated_at", ""), reverse=True),
+                "phase1_demonstrations": phase1.demonstrations()}
 
     @app.get("/training/runs/{run_id}")
     def run_detail(run_id: str):
+        if run_id.startswith(PREFIX):
+            return phase1.detail(run_id)
         return monitor.detail(run_id)
 
     @app.post("/training/runs/{run_id}/predict")
@@ -263,15 +284,15 @@ def install_training_routes(app, monitor):
         return monitor.predict(run_id, query)
 
     @app.get("/training/episodes")
-    def episodes(split: str = "train", offset: int = Query(default=0, ge=0),
+    def episodes(split: str = "train", run: str | None = None, offset: int = Query(default=0, ge=0),
                  limit: int = Query(default=200, ge=1, le=500)):
         if split not in {"train", "validation"}:
             raise HTTPException(400, "Choose train or validation")
-        rows = [row for row in monitor.episodes().values() if row["split"] == split]
+        rows = [row for row in corpus_monitor(run).episodes().values() if row["split"] == split]
         return {"episodes": [{key: value for key, value in row.items() if key != "moves"}
                              for row in rows[offset:offset + limit]],
                 "total": len(rows), "offset": offset, "limit": limit}
 
     @app.get("/training/episodes/{episode_id}")
-    def episode(episode_id: str):
-        return monitor.episode(episode_id)
+    def episode(episode_id: str, run: str | None = None):
+        return corpus_monitor(run).episode(episode_id)
