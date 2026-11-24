@@ -1,0 +1,18 @@
+{
+  "batch_id": "560db5b317814e5094c3b4d779023f68",
+  "part": 1,
+  "red": "expert",
+  "blue": "expert",
+  "revision": "9bc302b288f3d1767e1a2201defd670159e2cd53",
+  "target_completed": 1000,
+  "dataset": "e2-v3",
+  "requested_difficulties_only": true,
+  "outcomes": {
+    "completed": 500
+  },
+  "demonstrations_by_outcome_and_difficulty": {
+    "completed": {
+      "expert": 28606
+    }
+  }
+}

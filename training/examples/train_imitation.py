@@ -7,11 +7,8 @@ import random
 import numpy as np
 import torch
 from torch import nn
+from quoridor_lab.learning import network
 from quoridor_lab.quality import select_teacher_rows
-
-
-def network():
-    return nn.Sequential(nn.Flatten(), nn.Linear(8 * 9 * 9, 256), nn.ReLU(), nn.Linear(256, 209))
 
 
 def main():

@@ -1,0 +1,49 @@
+{
+  "updated_at": "2026-11-23T11:35:45.343762+00:00",
+  "archive_sha256": "1b63b071f8648765ef172519abba161d4f9b63402c7367d69e654ae3a9700e00",
+  "scope": "All non-Apple-metadata PGN entries read directly from verified ZIP. No training started. TSV policy mapping not audited.",
+  "pgn_files": 208619,
+  "parsed_pgn_records": 208619,
+  "syntax_error_records": 0,
+  "syntax_error_examples": [],
+  "unique_exact_move_sequences": 208615,
+  "duplicate_records_beyond_first": 4,
+  "exact_duplicate_groups": 4,
+  "max_exact_multiplicity": 2,
+  "unique_exact_or_left_right_mirror_groups": 208615,
+  "duplicate_examples": [
+    {
+      "first": "quoridorCPP 20260614121829 208K/pgn/20260211_065255.pgn",
+      "repeat": "quoridorCPP 20260614121829 208K/pgn/20260524_090044.pgn",
+      "plies": 57
+    },
+    {
+      "first": "quoridorCPP 20260614121829 208K/pgn/20260519_203749.pgn",
+      "repeat": "quoridorCPP 20260614121829 208K/pgn/20260529_163154.pgn",
+      "plies": 33
+    },
+    {
+      "first": "quoridorCPP 20260614121829 208K/pgn/20260513_030941.pgn",
+      "repeat": "quoridorCPP 20260614121829 208K/pgn/20260510_005026.pgn",
+      "plies": 43
+    },
+    {
+      "first": "quoridorCPP 20260614121829 208K/pgn/20260511_064146.pgn",
+      "repeat": "quoridorCPP 20260614121829 208K/pgn/20260505_022544.pgn",
+      "plies": 21
+    }
+  ],
+  "overlap_with_frozen_round1_2500": {},
+  "rule_replay_sample": {
+    "sample_size": 200,
+    "random_seed": 0,
+    "legal_games": 200,
+    "legal_goal_finished": 200,
+    "failure_examples": []
+  },
+  "min_plies": 13,
+  "max_plies": 100,
+  "mean_plies": 38.75,
+  "full_legality_audit_completed": false,
+  "elapsed_seconds": 12.3
+}

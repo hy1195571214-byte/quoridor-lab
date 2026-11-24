@@ -1,0 +1,119 @@
+{
+  "audited_at": "2026-11-23",
+  "release_tag": "barricade-red-expert-blue-expert-560db5b317814e5094c3b4d779023f68-e2-v3",
+  "requested_sides": [
+    {
+      "red": "expert",
+      "blue": "expert",
+      "games": 1000
+    }
+  ],
+  "episodes": 1000,
+  "plies": 56793,
+  "winner_counts": {
+    "red": 159,
+    "blue": 841
+  },
+  "ply_count": {
+    "min": 37,
+    "median": 60.0,
+    "max": 89
+  },
+  "distinct_full_move_sequences": 362,
+  "duplicate_full_move_sequences": 638,
+  "distinct_positions_without_ply_plane": 6041,
+  "transition_count": 56793,
+  "teacher_moves": {
+    "red": 28476,
+    "blue": 28317
+  },
+  "checks": {
+    "episodes_replayed": 1000,
+    "boards_reconstructed": 56793,
+    "target_masks_checked": 56793,
+    "full_209_action_masks_checked": 568,
+    "full_mask_sampling": "SHA256(episode_id:ply) first 8 hex digits modulo 100 == 0",
+    "missing_transitions": 0
+  },
+  "quality_policy": "verified-e2",
+  "quality_counts": {
+    "teacher_samples_before": 56793,
+    "opening_e2": 1000,
+    "teacher_samples_after": 56793,
+    "progress_e2": 124,
+    "review_e2": 18
+  },
+  "quality_exclusions": {
+    "quarantined": 0,
+    "unverified_e2_excluded": 0
+  },
+  "request_evidence": {
+    "cached": 0,
+    "with_request_diagnostics": 56793
+  },
+  "overlap_with_previous_downloads": {
+    "master_vs_master_3000": {
+      "episode_ids": 0,
+      "full_move_sequences": 0
+    },
+    "master_vs_expert_500": {
+      "episode_ids": 0,
+      "full_move_sequences": 0
+    }
+  },
+  "parts": [
+    {
+      "folder": "part-001",
+      "manifest": {
+        "batch_id": "560db5b317814e5094c3b4d779023f68",
+        "part": 1,
+        "red": "expert",
+        "blue": "expert",
+        "revision": "9bc302b288f3d1767e1a2201defd670159e2cd53",
+        "target_completed": 1000,
+        "dataset": "e2-v3",
+        "requested_difficulties_only": true,
+        "outcomes": {
+          "completed": 500
+        },
+        "demonstrations_by_outcome_and_difficulty": {
+          "completed": {
+            "expert": 28606
+          }
+        }
+      },
+      "episodes": 500
+    },
+    {
+      "folder": "part-002",
+      "manifest": {
+        "batch_id": "560db5b317814e5094c3b4d779023f68",
+        "part": 2,
+        "red": "expert",
+        "blue": "expert",
+        "revision": "9bc302b288f3d1767e1a2201defd670159e2cd53",
+        "target_completed": 1000,
+        "dataset": "e2-v3",
+        "requested_difficulties_only": true,
+        "outcomes": {
+          "completed": 500
+        },
+        "demonstrations_by_outcome_and_difficulty": {
+          "completed": {
+            "expert": 28187
+          }
+        }
+      },
+      "episodes": 500
+    }
+  ],
+  "errors": {},
+  "error_examples": [],
+  "limitations": [
+    "Expert difficulty is a request label. Effective provider engine and version are unverified.",
+    "Release e2-v3 removed historical e2 retreat games. This selection can change the distribution.",
+    "Default verified-e2 exclusions are a data selection policy, not proof of tactical mistakes.",
+    "Full legal masks were sampled. Every board, selected action and resulting state was checked."
+  ],
+  "quality_version": 3
+}

@@ -31,6 +31,7 @@ import {
   TrashIcon,
   XMarkIcon,
   Cog6ToothIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import {
   BackwardIcon,
@@ -42,6 +43,7 @@ import Board from "./components/Board.jsx";
 import ResultCard from "./components/ResultCard.jsx";
 import ClipDialog from "./components/ClipDialog.jsx";
 import Lobby from "./components/Lobby.jsx";
+import TrainingDashboard from "./components/TrainingDashboard.jsx";
 import { applyAction, notation, replay } from "./game/rules.js";
 import { agentRegistry, createAgentRunner, httpAgent } from "./game/agents.js";
 import {
@@ -50,6 +52,7 @@ import {
   encodeShare,
   exportRecord,
   parseRecord,
+  replaySelection,
 } from "./game/record.js";
 import {
   playMoveSound,
@@ -209,7 +212,7 @@ function Sidebar({ navigate, path }) {
         <strong>Quoridor Lab</strong>
       </a>
       <nav>
-        {[[HomeIcon, t("对局"), "/"]].map(([Icon, text, href]) => (
+        {[[HomeIcon, t("对局"), "/"], [ChartBarIcon, t("训练看板"), "/training"]].map(([Icon, text, href]) => (
           <a
             key={href}
             className={path === href ? "active" : ""}
@@ -492,12 +495,7 @@ export default function App() {
       return createRecord();
     }
   });
-  const [selection, setSelection] = useState(() => ({
-    ...emptySelection,
-    cursor: record.moves.length - 1,
-    branchId: record.variations.length ? record.variations.length - 1 : null,
-    branchCursor: (record.variations.at(-1)?.moves.length ?? 0) - 1,
-  }));
+  const [selection, setSelection] = useState(() => replaySelection(record, routeParts().search));
   const [muted, setMuted] = useState(() => readPreference("muted", false));
   const [light, setLight] = useState(() => readPreference("light", false));
   const [rack, setRack] = useState(() => readPreference("rack", false));
@@ -738,12 +736,7 @@ export default function App() {
           "此链接使用原站服务器对局编号，请导入其棋谱或 moves 回放链接。",
         );
       setRecord(next);
-      setSelection({
-        ...emptySelection,
-        cursor: next.moves.length - 1,
-        branchId: next.variations.length ? next.variations.length - 1 : null,
-        branchCursor: (next.variations.at(-1)?.moves.length ?? 0) - 1,
-      });
+      setSelection(replaySelection(next, route.search));
     } catch (error) {
       setRecord(createRecord());
       setSelection(emptySelection);
@@ -1413,6 +1406,8 @@ export default function App() {
         <div className="with-sidebar">
           <Lobby navigate={navigate} />
         </div>
+      ) : path === "/training" ? (
+        <TrainingDashboard navigate={navigate} />
       ) : isGame ? (
         <main
           className={`game-stage ${isReplay ? "with-sidebar replay-stage" : ""}`}

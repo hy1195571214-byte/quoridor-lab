@@ -1,0 +1,23 @@
+{
+  "reference": {
+    "samples": 1024,
+    "seconds": 4.0996108330000425,
+    "samples_per_second": 249.77980635558276
+  },
+  "optimized": {
+    "samples": 1024,
+    "seconds": 0.19231116599985398,
+    "samples_per_second": 5324.703818814023
+  },
+  "exact_batch_equality": true,
+  "speedup": 21.317591267701822,
+  "scope": "1024 real training samples, board/mask generation, rule replay and batch assembly; no optimizer/model changes",
+  "hardware": {
+    "chip": "Apple M4",
+    "memory_GB": 16
+  },
+  "dataset_version": "round2-cpp208k-v1",
+  "batch_size": 256,
+  "shuffle_buffer": 1024,
+  "seed": 0
+}

@@ -1,0 +1,44 @@
+{
+  "checked_at": "2026-11-23T11:45:23.605111+00:00",
+  "manifest": "/Volumes/HY/QuoridorData/training-datasets/round2-cpp208k-v1/manifest.json",
+  "manifest_sha256": "0da4eff566394b281bfef31c81fc056960ab165ec61b74042a532ba1ed3a9976",
+  "corpus_sha256": "c75e25eb7e938413233ab30ef1463f01aa520da26a90d3270b1786baf9d22562",
+  "total_episodes": 210859,
+  "total_plies": 8199006,
+  "splits": {
+    "train": 168730,
+    "test": 21281,
+    "validation": 20848
+  },
+  "split_plies": {
+    "train": 6559801,
+    "test": 829255,
+    "validation": 809950
+  },
+  "parent_episodes_preserved": 2500,
+  "cpp_episodes_added": 208359,
+  "duplicate_records_removed": 4,
+  "unfinished_records_excluded": 256,
+  "illegal_move_records": 0,
+  "exact_or_mirror_groups_crossing_partitions": 0,
+  "master_labelled_episodes": 0,
+  "full_replay_completed": true,
+  "corpus_and_offsets_independently_verified": true,
+  "real_data_loader": {
+    "data_mode": "stream",
+    "dataset_version": "round2-cpp208k-v1",
+    "dataset_manifest": "/Volumes/HY/QuoridorData/training-datasets/round2-cpp208k-v1/manifest.json",
+    "prepared_samples": 0
+  },
+  "batch_shape": [
+    32,
+    8,
+    9,
+    9
+  ],
+  "batch_target_legality": true,
+  "cnn32_forward_loss_finite": true,
+  "formal_training_started": false,
+  "position_overlap_between_partitions_audited": false,
+  "notes": "Whole-game and reflection leakage checked; common openings and other repeated positions can still appear across partitions. Existing 250 holdout games retained, with a new CPP holdout added."
+}

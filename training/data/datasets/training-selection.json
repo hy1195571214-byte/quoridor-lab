@@ -1,0 +1,61 @@
+{
+  "updated_at": "2026-11-23",
+  "paths_relative_to": "training",
+  "decision": "Keep the excluded Master batches excluded; include replay-verified QuoridorCPP PGN in a new combined frozen dataset while preserving the previous 2500 episode split assignments.",
+  "approved_episode_sources": [
+    {
+      "name": "expert-vs-expert",
+      "episodes_file": "data/datasets/expert-vs-expert-1000-e2-v3/deduplicated/episodes.jsonl",
+      "sha256": "5c48e72e61e31afdd41a6c5b583b9f7f0810b4607ca544a3ca7973287c233d4f",
+      "episodes": 362,
+      "plies": 19922,
+      "difficulty_evidence": "requested expert for both sides"
+    },
+    {
+      "name": "quoridorgg-pgn",
+      "episodes_file": "data/datasets/quoridorgg-pgn-5k/unique-goal-episodes.jsonl",
+      "sha256": "f77029b7c741a95b70602d1110fab3bf7f6cd5460945affe1b0859608a8a4a64",
+      "episodes": 2212,
+      "plies": 124380,
+      "difficulty_evidence": "unknown; original PGN contains numbered moves only"
+    },
+    {
+      "name": "quoridorcpp-pgn",
+      "episodes_file": "data/datasets/round2-cpp208k-v1/episodes.jsonl",
+      "dataset_source_filter": "quoridorcpp-pgn",
+      "sha256": "c75e25eb7e938413233ab30ef1463f01aa520da26a90d3270b1786baf9d22562",
+      "episodes": 208359,
+      "plies": 8058983,
+      "difficulty_evidence": "Unknown: move-only PGN has no player, rating, difficulty or generation-method metadata.",
+      "full_replay_verified": true,
+      "duplicate_records_removed": 4,
+      "unfinished_records_excluded": 256,
+      "audit_report": "data/datasets/quoridorcpp-208k/combined-dataset-acceptance.json"
+    }
+  ],
+  "excluded_batches": [
+    {
+      "name": "master-vs-master-3000",
+      "reason": "User excluded Master data"
+    },
+    {
+      "name": "master-vs-expert-500",
+      "reason": "User excluded batches containing Master"
+    }
+  ],
+  "pending_content_audit": [],
+  "selected_episodes": 210933,
+  "selected_plies": 8203285,
+  "pipeline_status": "Combined frozen corpus replay-checked and selected. User manually started pretrain-001 from the local training dashboard on 2026-11-23; no training was started by the UI checks.",
+  "active_dataset": {
+    "version": "round2-cpp208k-v1",
+    "manifest": "data/datasets/round2-cpp208k-v1/manifest.json",
+    "episodes": 210859,
+    "plies": 8199006,
+    "splits": {
+      "train": 168730,
+      "test": 21281,
+      "validation": 20848
+    }
+  }
+}

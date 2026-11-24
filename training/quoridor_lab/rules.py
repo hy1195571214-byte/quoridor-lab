@@ -197,7 +197,7 @@ class State:
                 raise ValueError(f"Invalid history at ply {index + 1}: {exc}") from exc
         return state
 
-    def observation(self, max_plies=256) -> dict:
+    def board_planes(self, max_plies=256) -> np.ndarray:
         board = np.zeros((8, 9, 9), dtype=np.float32)
         for i, (r, c) in enumerate(self.pawns):
             board[i, r, c] = 1
@@ -210,7 +210,10 @@ class State:
         board[5].fill(self.remaining[1] / 10)
         board[6].fill(self.turn - 1)
         board[7].fill(min(1, len(self.history) / max_plies))
-        return {"board": board, "action_mask": self.action_mask()}
+        return board
+
+    def observation(self, max_plies=256) -> dict:
+        return {"board": self.board_planes(max_plies), "action_mask": self.action_mask()}
 
     def to_dict(self) -> dict:
         square = lambda p: f"{chr(97 + p[1])}{9 - p[0]}"

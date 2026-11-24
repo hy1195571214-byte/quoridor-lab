@@ -1,0 +1,49 @@
+{
+  "release_tag": "training-data-2026-11-23",
+  "repository": "hy1195571214-byte/quoridor-lab",
+  "release_url": "https://github.com/hy1195571214-byte/quoridor-lab/releases/tag/training-data-2026-11-23",
+  "version": "round2-cpp208k-v1",
+  "dataset_folder": "round2-cpp208k-v1",
+  "episodes": 210859,
+  "plies": 8199006,
+  "splits": {
+    "train": 168730,
+    "validation": 20848,
+    "test": 21281
+  },
+  "manifest_sha256": "0da4eff566394b281bfef31c81fc056960ab165ec61b74042a532ba1ed3a9976",
+  "corpus_sha256": "c75e25eb7e938413233ab30ef1463f01aa520da26a90d3270b1786baf9d22562",
+  "test_episodes": 21281,
+  "test_plies": 829255,
+  "assets": [
+    {
+      "name": "quoridor-training-data-round2-v1.tar.gz",
+      "kind": "frozen_training_validation_and_test_corpus",
+      "bytes": 68722274,
+      "sha256": "597044051cec79b20dd24b5198a725f27b8c3d9542bc334b1f6425d60cdd02c7",
+      "url": "https://github.com/hy1195571214-byte/quoridor-lab/releases/download/training-data-2026-11-23/quoridor-training-data-round2-v1.tar.gz"
+    },
+    {
+      "name": "quoridor-test-set-round2-v1.jsonl.gz",
+      "kind": "independent_test_set",
+      "bytes": 4991644,
+      "sha256": "b00e77a894eb8c7f23e400c07c9c98c2a8be5d5c6277c15b939b9e4779704642",
+      "url": "https://github.com/hy1195571214-byte/quoridor-lab/releases/download/training-data-2026-11-23/quoridor-test-set-round2-v1.jsonl.gz"
+    },
+    {
+      "name": "quoridor-source-data-20261123.tar.gz",
+      "kind": "original_and_intermediate_source_data_except_cpp_zip",
+      "bytes": 40041095,
+      "sha256": "41b9cbb807dcf02decbf1ff2d1851f42bf3f15c8a6b6fa8a7f896fdf6aed6424",
+      "url": "https://github.com/hy1195571214-byte/quoridor-lab/releases/download/training-data-2026-11-23/quoridor-source-data-20261123.tar.gz"
+    },
+    {
+      "name": "quoridorcpp-208k.zip",
+      "kind": "original_quoridorcpp_zip",
+      "bytes": 1949662481,
+      "sha256": "1b63b071f8648765ef172519abba161d4f9b63402c7367d69e654ae3a9700e00",
+      "url": "https://github.com/hy1195571214-byte/quoridor-lab/releases/download/training-data-2026-11-23/quoridorcpp-208k.zip"
+    }
+  ],
+  "license_note": "Upstream Quoridor-Zero data licensing is unverified/unknown. Preserve the upstream provenance; the project license does not relicense third-party data."
+}

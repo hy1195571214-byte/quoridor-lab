@@ -1,0 +1,23 @@
+{
+  "release_url": "https://github.com/hy1195571214-byte/quoridor-lab/releases/tag/barricade-red-expert-blue-expert-560db5b317814e5094c3b4d779023f68-e2-v3",
+  "release_tag": "barricade-red-expert-blue-expert-560db5b317814e5094c3b4d779023f68-e2-v3",
+  "release_description": "Quoridor Lab e2-v3 corpus. Historical games with a retreat to e2 were excluded from the active corpus. Difficulty labels denote requested settings; effective engine difficulty is unverified. Replay-validated records and demonstrations; SHA-256 supplied per shard.",
+  "quality_module_blob_sha": "b0792eba4656ce93100fddda5acaf4d7bbfb61f4",
+  "quality_module_commit": "9bc302b288f3d1767e1a2201defd670159e2cd53",
+  "assets": [
+    {
+      "file": "part-001.tar.gz",
+      "source_file": "barricade-red-expert-blue-expert-560db5b317814e5094c3b4d779023f68-e2-v3-part-001.tar.gz",
+      "url": "https://github.com/hy1195571214-byte/quoridor-lab/releases/download/barricade-red-expert-blue-expert-560db5b317814e5094c3b4d779023f68-e2-v3/barricade-red-expert-blue-expert-560db5b317814e5094c3b4d779023f68-e2-v3-part-001.tar.gz",
+      "size": 5597059,
+      "sha256": "78d980b55db4c7503d7355db4812edc1fe525cff5a25e54a5f2a00cf9f9c9073"
+    },
+    {
+      "file": "part-002.tar.gz",
+      "source_file": "barricade-red-expert-blue-expert-560db5b317814e5094c3b4d779023f68-e2-v3-part-002.tar.gz",
+      "url": "https://github.com/hy1195571214-byte/quoridor-lab/releases/download/barricade-red-expert-blue-expert-560db5b317814e5094c3b4d779023f68-e2-v3/barricade-red-expert-blue-expert-560db5b317814e5094c3b4d779023f68-e2-v3-part-002.tar.gz",
+      "size": 5523262,
+      "sha256": "2942a5453ebc1e18abddb4700b34131755702a58725cc9b6e54d8cb5059b3857"
+    }
+  ]
+}
