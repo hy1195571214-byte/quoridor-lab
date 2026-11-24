@@ -110,6 +110,25 @@ python -m quoridor_lab collect --red-difficulty expert --blue-difficulty hard --
 
 `--policy` 是与专家对抗的本地采集策略，可选 `shortest` 和 `random`。默认策略只沿最短路径走棋，不能代表一个强搜索 AI。更强的自定义策略可以直接接入 `QuoridorEnv.step()`；不同采集策略会产生不同分布的训练局面。
 
+### 搜索型 AI（Minimax）
+
+实现位于 `quoridor_lab/search.py`，对外类为 `SearchAgent`，与 `LocalPolicy` 一样提供 `choose(state) -> Decision`。
+
+```bash
+PYTHONPATH=training training/.venv/bin/python training/examples/serve_custom_agent.py \
+  --port 8765 --data-dir ./handoff-local-data
+```
+
+浏览器将「搜索型 AI」指向 `http://127.0.0.1:8765/agents/search/move`。三档难度注册为 `search_easy`、`search_medium`、`search_hard`。
+
+三档难度两两对战基线（默认每组 20 局并交换先后手）：
+
+```bash
+PYTHONPATH=training training/.venv/bin/python training/examples/search_baseline.py --games 20 --output data/search_baseline
+```
+
+输出 `baseline_<时间>.csv`、`*_steps.jsonl`（每步耗时）与 JSON 摘要。
+
 - `--expert-side alternate` 交换专家先后手，也可固定 `1` 或 `2`。
 - 所有官网调用串行执行，默认至少间隔 1 秒。同一输出目录一次运行一个采集进程。
 - 设备 ID 保存在 `data/device-id.txt`，持续复用；不读取浏览器账号或轮换身份。

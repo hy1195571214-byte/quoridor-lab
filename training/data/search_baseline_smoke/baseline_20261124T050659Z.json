@@ -1,0 +1,67 @@
+{
+  "date_utc": "20261124T050659Z",
+  "games_per_side": 1,
+  "max_plies": 256,
+  "seed": 0,
+  "difficulty_config": {
+    "easy": {
+      "name": "easy",
+      "depth": 2,
+      "wall_filter": false,
+      "corridor_slack": 1,
+      "random_prob": 0.15,
+      "max_wall_candidates": 8,
+      "eval_weights": {
+        "wall_balance": 0.0
+      }
+    },
+    "medium": {
+      "name": "medium",
+      "depth": 3,
+      "wall_filter": true,
+      "corridor_slack": 1,
+      "random_prob": 0.0,
+      "max_wall_candidates": 10,
+      "eval_weights": {
+        "wall_balance": 0.0
+      }
+    },
+    "hard": {
+      "name": "hard",
+      "depth": 4,
+      "wall_filter": true,
+      "corridor_slack": 1,
+      "random_prob": 0.0,
+      "max_wall_candidates": 12,
+      "eval_weights": {
+        "wall_balance": 0.3
+      }
+    }
+  },
+  "summary": {
+    "easy": {
+      "games": 4,
+      "wins_as_red": 2,
+      "wins_as_blue": 0,
+      "avg_plies": 73.5,
+      "illegal_moves": 0
+    },
+    "medium": {
+      "games": 4,
+      "wins_as_red": 1,
+      "wins_as_blue": 1,
+      "avg_plies": 64.0,
+      "illegal_moves": 0
+    },
+    "hard": {
+      "games": 4,
+      "wins_as_red": 1,
+      "wins_as_blue": 1,
+      "avg_plies": 67.5,
+      "illegal_moves": 0
+    }
+  },
+  "conclusion": "easy vs medium: 胜负接近 (1-1)。\neasy vs hard: 胜负接近 (1-1)。\nmedium vs hard: 胜负接近 (1-1)。\n全部对局未出现非法行动。",
+  "csv": "baseline_20261124T050659Z.csv",
+  "steps_jsonl": "baseline_20261124T050659Z_steps.jsonl"
+}
