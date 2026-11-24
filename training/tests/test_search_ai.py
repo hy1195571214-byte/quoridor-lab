@@ -1,6 +1,8 @@
 import math
 import time
 import unittest
+from dataclasses import replace
+from unittest.mock import patch
 
 from quoridor_lab.rules import Action, State
 import tempfile
@@ -9,7 +11,10 @@ from fastapi.testclient import TestClient
 
 from quoridor_lab.api import create_app
 from quoridor_lab.opponents import RemoteExpert
-from quoridor_lab.search import DIFFICULTY_PRESETS, SearchAgent
+from quoridor_lab.search import (
+    DIFFICULTY_PRESETS, WIN_SCORE, SearchAgent, SearchStats, TimeBudgetExceeded,
+    _choose_minimax, _search, _search_root,
+)
 
 
 class SearchAgentTests(unittest.TestCase):
@@ -30,7 +35,7 @@ class SearchAgentTests(unittest.TestCase):
             self.assertEqual(agent.difficulty, name)
             self.assertIn(name, DIFFICULTY_PRESETS)
 
-    def test_hard_beats_random_policy_short_horizon(self):
+    def test_self_play_short_horizon_only_legal(self):
         """Smoke test: hard search should finish a self-play line without illegal moves."""
         state = State()
         agents = {1: SearchAgent("hard", seed=0), 2: SearchAgent("medium", seed=1)}
@@ -48,10 +53,64 @@ class SearchAgentTests(unittest.TestCase):
     def test_distance_999_is_finite(self):
         from quoridor_lab.search import _distance_margin
 
+        for distances in ((999, 8), (8, 999), (999, 999)):
+            with self.subTest(distances=distances), patch.object(
+                State, "distance", lambda state, player: distances[player - 1]
+            ):
+                m = _distance_margin(State(), 1, 2)
+                self.assertTrue(math.isfinite(m))
+                self.assertEqual(m > 0, distances == (8, 999))
+                self.assertEqual(m < 0, distances == (999, 8))
+
+    def test_leaf_score_keeps_root_perspective_for_either_turn(self):
+        for turn in (1, 2):
+            state = State(pawns=((6, 4), (1, 4)), remaining=(0, 0), turn=turn)
+            for root in (1, 2):
+                with self.subTest(turn=turn, root=root):
+                    score = _search(state, 0, -math.inf, math.inf, root,
+                                    DIFFICULTY_PRESETS["medium"], SearchStats(), None)
+                    self.assertEqual(score, state.distance(3 - root) - state.distance(root))
+
+    def test_depth_one_advances_toward_goal_for_either_side(self):
+        for player in (1, 2):
+            state = State(remaining=(0, 0), turn=player)
+            action, _, _ = _search_root(state, 1, DIFFICULTY_PRESETS["medium"], None)
+            self.assertLess(state.apply(action).distance(player), state.distance(player))
+
+    def test_alpha_beta_matches_exhaustive_search_at_odd_and_even_depths(self):
+        def exhaustive(state, depth, root):
+            if state.winner is not None:
+                return WIN_SCORE if state.winner == root else -WIN_SCORE
+            if depth == 0:
+                return state.distance(3 - root) - state.distance(root)
+            values = [exhaustive(state.apply(a), depth - 1, root) for a in state.legal_actions()]
+            return (max if state.turn == root else min)(values)
+
+        for player in (1, 2):
+            state = State(pawns=((5, 4), (3, 5)), remaining=(0, 0), turn=player)
+            for depth in (1, 2, 3):
+                with self.subTest(player=player, depth=depth):
+                    action, _, score = _search_root(state, depth, DIFFICULTY_PRESETS["hard"], None)
+                    self.assertEqual(score, exhaustive(state, depth, player))
+                    self.assertEqual(score, exhaustive(state.apply(action), depth - 1, player))
+
+    def test_both_sides_take_an_immediate_win(self):
+        for player in (1, 2):
+            state = State(pawns=((1, 4), (7, 2)), remaining=(0, 0), turn=player)
+            decision = SearchAgent("medium").choose(state)
+            self.assertEqual(state.apply(decision.action).winner, player)
+
+    def test_timeout_retains_last_completed_iteration(self):
         state = State()
-        m = _distance_margin(state, 1, 2)
-        self.assertFalse(math.isnan(m))
-        self.assertFalse(math.isinf(m))
+        config = replace(DIFFICULTY_PRESETS["hard"], min_depth=1, max_depth=2)
+        action = Action.parse("e2")
+        with patch("quoridor_lab.search._search_root", side_effect=[
+            (action, SearchStats(completed_depth=1), 1.0), TimeBudgetExceeded()
+        ]):
+            chosen, stats, score = _choose_minimax(state, config)
+        self.assertEqual(chosen, action)
+        self.assertEqual(stats.completed_depth, 1)
+        self.assertEqual(score, 1.0)
 
     def test_decision_latency_recorded(self):
         agent = SearchAgent("easy", seed=0)

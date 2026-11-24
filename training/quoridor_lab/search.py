@@ -83,10 +83,9 @@ def _distance_margin(state: State, me: int, opp: int) -> float:
     return float(d_opp - d_me)
 
 
-def _leaf_value(state: State) -> float:
-    """score = distance(对手) - distance(当前行动方) at ``state.turn``."""
-    me, opp = state.turn, 3 - state.turn
-    return _distance_margin(state, me, opp)
+def _leaf_value(state: State, root_player: int) -> float:
+    """Keep every minimax score in the root player's perspective."""
+    return _distance_margin(state, root_player, 3 - root_player)
 
 
 def _terminal_value(state: State, root_player: int) -> float | None:
@@ -214,9 +213,10 @@ def _order_actions(state: State, actions: list[Action], root_player: int) -> lis
     def move_score(action: Action) -> float:
         child = state.apply(action)
         terminal = _terminal_value(child, root_player)
-        return terminal if terminal is not None else _leaf_value(child)
+        return terminal if terminal is not None else _leaf_value(child, root_player)
 
-    moves.sort(key=lambda a: (-move_score(a), a.notation))
+    direction = -1 if state.turn == root_player else 1
+    moves.sort(key=lambda a: (direction * move_score(a), a.notation))
     walls.sort(key=lambda a: (-_wall_gain(state, a), a.notation))
     return moves + walls
 
@@ -251,12 +251,12 @@ def _search(
     if terminal is not None:
         return terminal
     if depth == 0:
-        return _leaf_value(state)
+        return _leaf_value(state, root_player)
 
     maximizing = state.turn == root_player
     actions = _prepare_actions(state, config, root_player)
     if not actions:
-        return _leaf_value(state)
+        return _leaf_value(state, root_player)
 
     if maximizing:
         value = -math.inf
@@ -360,13 +360,13 @@ class SearchAgent:
         self.rng = random.Random(seed)
 
     def choose(self, state: State) -> Decision:
+        start = time.monotonic()
         if state.winner is not None:
             raise ValueError("Cannot choose after the game has ended")
         legal = state.legal_actions()
         if not legal:
             raise ValueError("No legal actions available")
 
-        start = time.monotonic()
         if self.config.mode == "greedy":
             action = _choose_greedy(state, self.config, self.rng)
             stats_meta = {"mode": "greedy", "random_fallback": False}

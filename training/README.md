@@ -127,7 +127,11 @@ PYTHONPATH=training training/.venv/bin/python training/examples/serve_custom_age
 PYTHONPATH=training training/.venv/bin/python training/examples/run_search_baseline.py --games 20 --output data/search_baseline
 ```
 
-输出 `baseline_<时间>.csv`、`*_steps.jsonl`（每步耗时）与 JSON 摘要。
+默认使用 seed 生成 4 步合法走棋开局，每组开局交换先后手，避免确定性策略从同一局面反复产生相同棋谱。`--seed` 控制开局和随机策略；`--opening-plies 0` 可从标准初始局面开始，但这时重复对局不增加独立样本。
+
+困难档默认每步限时 2 秒，完成深度可能随机器速度变化；需要复现实验决策时使用 `--hard-time-limit-seconds 0` 禁用限时。`--max-plies` 默认 256，达到上限标记为 `truncated`，胜率只统计已完成对局，并单独报告截断数量。
+
+输出 `search_baseline_<时间>.csv`（种子、开局和完整棋谱）、`*_steps.jsonl`（每步动作、耗时及搜索元数据）与 JSON 摘要。结果只描述所用开局下的表现，不能仅凭冒烟测试证明三档棋力递增。`data/search_baseline_smoke/`、`data/search_baseline/` 中已有的报告来自修复评分前的历史实现，不作为当前版本的棋力证据。
 
 - `--expert-side alternate` 交换专家先后手，也可固定 `1` 或 `2`。
 - 所有官网调用串行执行，默认至少间隔 1 秒。同一输出目录一次运行一个采集进程。
