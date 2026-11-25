@@ -19,9 +19,9 @@ from .dataset_import import reflection_group
 from .fast_observation import BOTTOM, TOP
 from .level1_arena import (ANCHORS, MAX_PLIES, POLICIES, POOL, THRESHOLDS, Game, bot_action,
                            balance_action_families, bit_distance, edges_for, estimate_elo, evaluation_games,
-                           model_elo, observations, passed, pawn_bit, play_evaluation, score_games)
+                           model_elo, observations, passed, pawn_bit, play_evaluation, score_games, step_batch)
 from .phase1_monitor import PROGRESS, phase1_progress, read_json, read_rows
-from .rules import State
+from .rules import Action, State
 from .search_demonstrations import opening_pool
 from .train_phase1 import ActorCritic, record, save
 from .training_monitor import atomic_json
@@ -33,15 +33,47 @@ HYPER = {"rollout_actions": 2048, "minibatch": 256, "update_epochs": 5,
          "entropy_coef": .01, "value_coef": .5, "max_grad_norm": .5}
 REWARD = {"wins": 1., "losses": -1., "truncated": 0., None: 0.}
 UNIT_UPDATES = 500
+RANDOM_TRAINING_POOL = ("level1",) * 14 + ("bfs",) * 4 + ("randomized_search",) * 2 + ("random",) * 5
+HORIZONTAL_ACTIONS = torch.tensor([
+    Action(move.kind, move.row, (8 if move.kind == "move" else 7) - move.col).id
+    for move in map(Action.from_id, range(209))
+])
 
 
 def next_unit_target(update):
     return (update // UNIT_UPDATES + 1) * UNIT_UPDATES
 
 
-def bfs_goal_potential(state, player, scale):
-    goal = TOP if player == 1 else BOTTOM
-    return -scale * bit_distance(pawn_bit(state.pawns[player - 1]), goal, edges_for(state.walls))
+def bfs_goal_potential(state, player, scale, *, distance_margin=False):
+    goal, opponent_goal = (TOP, BOTTOM) if player == 1 else (BOTTOM, TOP)
+    edges = edges_for(state.walls)
+    own = bit_distance(pawn_bit(state.pawns[player - 1]), goal, edges)
+    opponent = bit_distance(pawn_bit(state.pawns[2 - player]), opponent_goal, edges) if distance_margin else 0
+    return scale * (opponent - own)
+
+
+def repeats_pawn_moves(history):
+    """Recognize a repeated even-length sequence without any wall placements."""
+    for length in (4, 6, 8):
+        if (len(history) >= 2 * length and history[-2 * length:-length] == history[-length:]
+                and all(len(move) == 2 for move in history[-length:])):
+            return True
+    return False
+
+
+def rollout_observations(games, mirror_rollouts):
+    boards, masks = observations(games)
+    if not mirror_rollouts:
+        return boards, masks, None
+    mirrored = torch.tensor([bool(random.Random(5_430_000 + game.seed).getrandbits(1)) for game in games])
+    source = boards[mirrored]
+    view = source.flip(-1)
+    # Plane 3 encodes the left anchor of a vertical wall on an eight-column grid.
+    view[:, 3, :, :8] = source[:, 3, :, :8].flip(-1)
+    view[:, 3, :, 8] = source[:, 3, :, 8]
+    boards[mirrored] = view
+    masks[mirrored] = masks[mirrored][:, HORIZONTAL_ACTIONS]
+    return boards, masks, mirrored
 
 
 def sha256(path):
@@ -130,11 +162,19 @@ def prepare_curriculum(root, arena):
 
 
 class Experience:
-    def __init__(self, openings, lanes, seed, snapshot=None, curriculum=()):
+    def __init__(self, openings, lanes, seed, snapshot=None, curriculum=(), pool=POOL, resolve=bot_action):
         self.openings, self.seed = openings, seed
+        self.standard_openings = {tuple(opening) for opening in openings}
         self.curriculum = curriculum
+        self.pool = pool
+        self.pool_replacements = {}
+        self.alternate_pool_replacements = {}
+        self.standard_only_opponents = set()
+        self.resolve = resolve
+        self.resolve_batch = getattr(resolve, "batch", None)
         self.started = snapshot["started"] if snapshot else 0
         self.paired_opening = snapshot.get("paired_opening") if snapshot else None
+        self.paired_opponent = snapshot.get("paired_opponent") if snapshot else None
         self.games = []
         self.block = -1
         for slot in snapshot["slots"] if snapshot else [None] * lanes:
@@ -147,7 +187,8 @@ class Experience:
             raise ValueError("Resume must use the original number of rollout lanes")
 
     def snapshot(self):
-        return {"started": self.started, "paired_opening": self.paired_opening, "slots": [
+        return {"started": self.started, "paired_opening": self.paired_opening,
+                "paired_opponent": self.paired_opponent, "slots": [
             {"player": game.player, "opponent": game.opponent, "seed": game.seed,
              "opening": game.opening, "moves": game.state.history, "index": game.index}
             if game else None for game in self.games]}
@@ -155,30 +196,44 @@ class Experience:
     def next_game(self, curriculum_fraction=0.):
         index = self.started
         pair, side = divmod(index, 2)
-        block, position = divmod(pair, len(POOL))
+        block, position = divmod(pair, len(self.pool))
         if self.block != block:
-            self.order = list(POOL)
+            self.order = list(self.pool)
             random.Random(950_000 + self.seed + block).shuffle(self.order)
             self.block = block
         opponent = self.order[position]
+        if side and self.paired_opponent is not None:
+            opponent = self.paired_opponent
+        elif not side:
+            replacements = self.pool_replacements if block % 2 == 0 else self.alternate_pool_replacements
+            opponent = replacements.get(opponent, opponent)
         opening = self.openings[pair % len(self.openings)]
         if side and self.paired_opening:
             opening = self.paired_opening
-        elif not side and self.curriculum and curriculum_fraction:
+        elif not side and self.curriculum and curriculum_fraction and opponent not in self.standard_only_opponents:
             choice = random.Random(990_000 + self.seed + pair)
             if choice.random() < curriculum_fraction:
                 opening = choice.choice(self.curriculum)
         self.paired_opening = opening if side == 0 else None
+        self.paired_opponent = opponent if side == 0 else None
         self.started += 1
-        return Game.start(opening, side + 1, opponent, 960_000 + self.seed + pair, index)
+        return Game.start(opening, side + 1, opponent, 960_000 + self.seed + pair, index, self.resolve)
 
     def collect(self, model, hyper, device):
         data, rewards, values, ends = [], [], [], []
         outcomes = Counter(wins=0, losses=0, truncated=0)
-        by_opponent = {opponent: Counter() for opponent in set(POOL)}
-        starts = {opponent: Counter() for opponent in set(POOL)}
+        opponents = set(self.pool) | set(self.pool_replacements.values()) | set(self.alternate_pool_replacements.values())
+        opponents.update(game.opponent for game in self.games if game)
+        if self.paired_opponent is not None:
+            opponents.add(self.paired_opponent)
+        by_opponent = {opponent: Counter() for opponent in opponents}
+        starts = {opponent: Counter() for opponent in opponents}
         lanes = len(self.games)
         pbrs_scale = hyper.get("pbrs_scale", 0.)
+        distance_margin = hyper.get("pbrs_potential") == "distance_margin"
+        repeat_temperature = hyper.get("repeat_temperature", 1.)
+        temperature_rows = []
+        mirror_rollouts = hyper.get("mirror_rollouts", False)
         gamma = hyper["gamma"]
         model.eval()
         with torch.no_grad():
@@ -187,10 +242,16 @@ class Experience:
                     if game is None:
                         game = self.games[offset] = self.next_game(hyper.get("curriculum_fraction", 0.))
                         starts[game.opponent]["red" if game.player == 1 else "blue"] += 1
-                boards, masks = observations(self.games)
+                boards, masks, mirrored = rollout_observations(self.games, mirror_rollouts)
                 device_mask = masks.to(device)
                 logits, value = model(boards.to(device), device_mask)
                 logits = balance_action_families(logits, device_mask, hyper.get("action_family_balance", 0.))
+                if repeat_temperature > 1.:
+                    temperatures = [repeat_temperature if repeats_pawn_moves(game.state.history) else 1.
+                                    for game in self.games]
+                    row = torch.tensor(temperatures, dtype=logits.dtype)
+                    temperature_rows.append(row)
+                    logits = logits / row.to(device).unsqueeze(1)
                 policy = Categorical(logits=logits)
                 if device == "mps":
                     # MPS multinomial can select a zero-weight entry in a concentrated policy.
@@ -204,19 +265,29 @@ class Experience:
                 data.append((boards, masks, actions, policy.log_prob(device_actions).cpu()))
                 values.append(value.cpu().numpy())
                 tick_rewards, tick_ends = [], []
-                for offset, action in enumerate(actions.tolist()):
-                    if not masks[offset, action]:
-                        raise RuntimeError("Masked PPO selected an illegal learner action")
-                    game = self.games[offset]
+                if not masks.gather(1, actions.unsqueeze(1)).all().item():
+                    raise RuntimeError("Masked PPO selected an illegal learner action")
+                moves = actions
+                if mirrored is not None:
+                    moves = actions.clone()
+                    moves[mirrored] = HORIZONTAL_ACTIONS[actions[mirrored]]
+                ids = moves.tolist()
+                previous_states = [game.state for game in self.games]
+                results = (step_batch(self.games, ids, self.resolve_batch) if self.resolve_batch else
+                           [game.step(action, self.resolve) for game, action in zip(self.games, ids)])
+                for offset, (game, previous, result) in enumerate(zip(self.games, previous_states, results)):
                     by_opponent[game.opponent]["actions"] += 1
-                    previous = game.state
-                    result = game.step(action)
+                    if repeat_temperature > 1. and temperatures[offset] > 1.:
+                        by_opponent[game.opponent]["repeat_exploration_actions"] += 1
+                    if mirrored is not None and bool(mirrored[offset]):
+                        by_opponent[game.opponent]["mirrored_actions"] += 1
                     reward = REWARD[result]
                     if pbrs_scale:
                         # One learner decision includes the opponent reply. A capped game
                         # is a finite-horizon ending here, so both end types have zero potential.
-                        before = bfs_goal_potential(previous, game.player, pbrs_scale)
-                        after = bfs_goal_potential(game.state, game.player, pbrs_scale) if result is None else 0.
+                        before = bfs_goal_potential(previous, game.player, pbrs_scale, distance_margin=distance_margin)
+                        after = (bfs_goal_potential(game.state, game.player, pbrs_scale, distance_margin=distance_margin)
+                                 if result is None else 0.)
                         shaping = gamma * after - before
                         reward += shaping
                         by_opponent[game.opponent]["pbrs_reward"] += shaping
@@ -226,18 +297,23 @@ class Experience:
                     if result:
                         outcomes[result] += 1
                         by_opponent[game.opponent][result] += 1
+                        by_opponent[game.opponent][f"{result}_{'red' if game.player == 1 else 'blue'}"] += 1
+                        opening_group = "standard" if tuple(game.opening) in self.standard_openings else "curriculum"
+                        by_opponent[game.opponent][f"{result}_{opening_group}"] += 1
                         self.games[offset] = None
                 rewards.append(tick_rewards)
                 ends.append(tick_ends)
             active = [index for index, game in enumerate(self.games) if game]
             bootstrap = np.zeros(lanes, dtype=np.float32)
             if active:
-                boards, masks = observations([self.games[index] for index in active])
+                boards, masks, _ = rollout_observations([self.games[index] for index in active], mirror_rollouts)
                 bootstrap[active] = model(boards.to(device), masks.to(device))[1].cpu().numpy()
         adv = gae(rewards, values, ends, bootstrap, gamma, hyper["gae_lambda"])
         targets = adv + np.asarray(values)
         batch = (*[torch.cat(col) for col in zip(*data)], torch.from_numpy(adv.reshape(-1)),
                  torch.from_numpy(targets.astype(np.float32).reshape(-1)))
+        if temperature_rows:
+            batch = (*batch, torch.cat(temperature_rows))
         return batch, dict(outcomes), {key: dict(value) for key, value in by_opponent.items()}, starts, len(active)
 
 
@@ -254,15 +330,26 @@ def gae(rewards, values, ends, bootstrap, gamma, weight):
     return result
 
 
-def update_policy(model, optimizer, data, hyper, device):
-    boards, masks, actions, old_probs, advantage, returns = [item.to(device) for item in data]
+def update_policy(model, optimizer, data, hyper, device, *, reference=None):
+    boards, masks, actions, old_probs, advantage, returns, *temperature = [item.to(device) for item in data]
     advantage = (advantage - advantage.mean()) / advantage.std(unbiased=False).clamp_min(1e-8)
+    if reference is not None:
+        with torch.no_grad():
+            reference_logits, _ = reference(boards, masks)
+            reference_logits = balance_action_families(reference_logits, masks, hyper.get("action_family_balance", 0.))
+            if temperature:
+                reference_logits = reference_logits / temperature[0].unsqueeze(1)
+            reference_log_prob = reference_logits.log_softmax(dim=-1)
+            reference_prob = reference_log_prob.exp()
+            reference_log_prob = reference_log_prob.masked_fill(~masks, 0.)
     totals = Counter()
     model.train()
     for _ in range(hyper["update_epochs"]):
         for batch in torch.randperm(len(actions), device=device).split(hyper["minibatch"]):
             logits, values = model(boards[batch], masks[batch])
             logits = balance_action_families(logits, masks[batch], hyper.get("action_family_balance", 0.))
+            if temperature:
+                logits = logits / temperature[0][batch].unsqueeze(1)
             policy = Categorical(logits=logits)
             log_ratio = policy.log_prob(actions[batch]) - old_probs[batch]
             ratio = log_ratio.exp()
@@ -272,6 +359,10 @@ def update_policy(model, optimizer, data, hyper, device):
             value_loss = (values - returns[batch]).square().mean()
             entropy = policy.entropy().mean()
             total_loss = policy_loss + hyper["value_coef"] * value_loss - hyper["entropy_coef"] * entropy
+            if reference is not None:
+                current_log_prob = policy.logits.masked_fill(~masks[batch], 0.)
+                reference_kl = (reference_prob[batch] * (reference_log_prob[batch] - current_log_prob)).sum(-1).mean()
+                total_loss = total_loss + hyper["reference_kl_coef"] * reference_kl
             if not torch.isfinite(total_loss).item():
                 raise RuntimeError("Non-finite Masked PPO objective")
             optimizer.zero_grad(set_to_none=True)
@@ -282,17 +373,19 @@ def update_policy(model, optimizer, data, hyper, device):
                              "entropy": entropy, "grad_norm": grad,
                              "approx_kl": (ratio - 1 - log_ratio).mean(),
                              "clip_fraction": ((ratio - 1).abs() > clip).float().mean()}
+            if reference is not None:
+                values_to_log["reference_kl"] = reference_kl
             for key, value in values_to_log.items():
                 totals[key] += value.item() * len(batch)
     return {key: value / (len(actions) * hyper["update_epochs"]) for key, value in totals.items()}
 
 
-def evaluate(model, arena, device, family_balance):
+def evaluate(model, arena, device, family_balance, opponents=ANCHORS, resolve=bot_action):
     scores, games = {}, []
-    for index, opponent in enumerate(ANCHORS):
+    for index, opponent in enumerate(opponents):
         trials = evaluation_games([tuple(opening) for opening in arena["eval_openings"]],
-                                  opponent, arena["eval_seed"] + 1000 * index)
-        records = play_evaluation(trials, device, model=model, family_balance=family_balance)
+                                  opponent, arena["eval_seed"] + 1000 * index, resolve)
+        records = play_evaluation(trials, device, model=model, family_balance=family_balance, resolve=resolve)
         scores[opponent] = score_games(records)
         games.extend(records)
     return scores, games
@@ -357,17 +450,35 @@ def save_report(folder, config, state, history, finished):
     rows = [event for event in history if "formal_eval" in event]
     limit = state.get("limit", SCHEDULE["limit"])
     result = "已达标" if state["qualified"] else f"{limit} 轮内未达标" if finished else "训练中"
+    comparison = config.get("comparison")
+    inherited = (f"继承：Level 1 第 {comparison['source_update']} 次更新的权重和 Adam。"
+                 if comparison else
+                 f"继承：本地搜索试跑第 {config['inheritance']['pilot_updates']} 轮的模型和 Adam。")
     header = ["# Quoridor Phase 1 — Level 1", "",
               f"模型：{config['architecture'].upper()} · seed {config['seed']} · {config['device']}",
               f"正式训练：{state['update']} 轮 / {state['steps']:,} 有效动作。",
-              f"继承：本地搜索试跑第 {config['inheritance']['pilot_updates']} 轮的模型和 Adam。外部历史棋谱使用量为 0。",
-              f"状态：{result}。",
-              "Elo 为冻结本机 Arena 内部估计，BFS=1500。胜率分母为每对手 200 局，截断与非法单列。",
-              "", "| 轮次 | Elo | Random 胜率 | BFS 胜率 | Level 1 胜率 | 最高截断率 | 非法 | 连续达标 | 动作/秒 | KL | Entropy | Loss |",
-              "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
+              f"{inherited}外部历史棋谱使用量为 0。",
+              f"状态：{result}。"]
+    if comparison:
+        label = "Random 专项" if comparison["arm"] == "random" else "原对手池对照"
+        pool = " · ".join(f"{name} {ratio:.0%}" for name, ratio in config["opponent_pool"].items())
+        baseline = comparison["baseline"]
+        header.extend([f"组别：{label}。对手配比：{pool}。",
+                       f"起点对 Random 胜率 {baseline['random']['win_rate']:.1%}，"
+                       f"截断率 {baseline['random']['truncation_rate']:.1%}。"])
+        if game_units := state.get("game_units"):
+            header.extend([f"从第 {game_units['started_at_update']} 次更新后按每 {game_units['size']} 盘训练对局评估，首次达标即停止。",
+                           f"本次续训已结算 {game_units['completed']} 盘训练对局。"])
+        else:
+            header.append(f"当前累计预算为 {limit} 次 PPO 更新，训练参数保持为起点配置。")
+    header.extend(["Elo 为冻结本机 Arena 内部估计，BFS=1500。胜率分母为每对手 200 局，截断与非法单列。",
+                   "", "| 轮次 | Elo | Random 胜率 | Random 截断率 | BFS 胜率 | Level 1 胜率 | 最高截断率 | 非法 | 连续达标 | 动作/秒 | KL | Entropy | Loss |",
+                   "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"])
     for event in rows:
         scores = event["formal_eval"]
-        rates = " | ".join(f"{scores[name]['win_rate']:.1%}" for name in ANCHORS)
+        rates = " | ".join(f"{rate:.1%}" for rate in (
+            scores["random"]["win_rate"], scores["random"]["truncation_rate"],
+            scores["bfs"]["win_rate"], scores["level1"]["win_rate"]))
         header.append(f"| {event['update']} | {event['elo']:.0f} | {rates} | "
                       f"{max(row['truncation_rate'] for row in scores.values()):.1%} | "
                       f"{sum(row['illegal'] for row in scores.values())} | {event['qualifying_streak']} | "
@@ -416,6 +527,19 @@ def train(args):
               "schedule": SCHEDULE, "hyperparameters": HYPER, "opponent_pool": {"level1": .7, "bfs": .2, "randomized_search": .1},
               "max_plies": MAX_PLIES, "truncation": "finite-horizon zero reward", "start_level": "level1_pool",
               "torch_version": str(torch.__version__)}
+    comparison = None
+    origin = None
+    if args.comparison_source:
+        origin = torch.load(args.comparison_source, map_location="cpu", weights_only=True)
+        original = origin["state"]
+        if origin["config"] != config or original.get("curriculum_sha256") != curriculum_sha:
+            raise ValueError("Comparison must inherit a matching Level 1 checkpoint, Arena, curriculum and device")
+        evaluation = (original.get("event") or {}).get("formal_eval")
+        if not evaluation or original["hyper"].get("pbrs_scale") != .02:
+            raise ValueError("Comparison requires a formally evaluated checkpoint with PBRS 0.02")
+        comparison = {"arm": args.comparison_arm, "source_update": original["update"],
+                      "source_checkpoint": str(args.comparison_source.resolve()),
+                      "source_sha256": sha256(args.comparison_source), "baseline": evaluation}
     folder = args.root / f"{architecture}-seed{args.seed}"
     if not args.resume:
         folder.mkdir(parents=True, exist_ok=False)
@@ -430,6 +554,17 @@ def train(args):
             # Loading on CPU lets load_state_dict move each state tensor correctly.
             saved = torch.load(latest, map_location="cpu", weights_only=True)
             saved_config = saved["config"]
+            comparison = saved_config.get("comparison")
+        if comparison:
+            if args.until_first_pass or args.migrate_device or args.pbrs_scale is not None:
+                raise ValueError("Comparison requires an explicit update budget and retains its device and PPO settings")
+            pool = RANDOM_TRAINING_POOL if comparison["arm"] == "random" else POOL
+            config.update(comparison=comparison, opponent_pool={
+                name: count / len(pool) for name, count in Counter(pool).items()
+            })
+        else:
+            pool = POOL
+        if args.resume:
             if saved_config != config and args.migrate_device and {**saved_config, "device": args.device} == config:
                 previous_device = saved_config["device"]
             elif saved_config != config:
@@ -437,9 +572,11 @@ def train(args):
             state = saved["state"]
         else:
             atomic_json(folder / "config.json", config)
-            saved = pilot
+            saved = origin if comparison else pilot
             state = {"update": 0, "steps": 0, "target": SCHEDULE["initial"], "streak": 0, "qualified": False,
                      "best_rank": None, "best_update": 0, "hyper": dict(HYPER), "rollout": None, "event": None}
+            if comparison:
+                state.update(target=UNIT_UPDATES, limit=UNIT_UPDATES, hyper=dict(origin["state"]["hyper"]))
         model.load_state_dict(saved["model"])
         optimizer.load_state_dict(saved["optimizer"])
         if state["event"] and "formal_eval" in state["event"]:
@@ -456,9 +593,22 @@ def train(args):
         if state.get("curriculum_sha256", curriculum_sha) != curriculum_sha:
             raise ValueError("Resume requires the original curriculum opening bank")
         state["curriculum_sha256"] = curriculum_sha
-        experience = Experience(arena["training_openings"], args.lanes, args.seed, state["rollout"], curriculum["openings"])
+        experience = Experience(arena["training_openings"], args.lanes, args.seed, state["rollout"], curriculum["openings"], pool)
+        game_units = state.get("game_units")
+        game_units_started = args.until_first_pass_games is not None and game_units is None
+        if game_units_started:
+            if not comparison or comparison["arm"] != "random":
+                raise ValueError("Game units require a resumed Random training run")
+            game_units = {"size": args.until_first_pass_games, "started_at_update": state["update"],
+                          "completed": 0, "next_evaluation": args.until_first_pass_games}
+            state["game_units"] = game_units
+        if game_units:
+            if args.extend_to is not None or args.until_first_pass:
+                raise ValueError("This run already has its continuation budget in training games")
+            if args.until_first_pass_games is not None and args.until_first_pass_games != game_units["size"]:
+                raise ValueError("Resume must keep the saved training game unit size")
         auto_units = bool(args.until_first_pass or state.get("until_first_pass"))
-        required_passes = 1 if auto_units else 3
+        required_passes = 1 if auto_units or comparison else 3
         first_pass = next((row for row in history if row.get("gate_passed")), None) if auto_units else None
         if first_pass:
             state.update(qualified=True, qualified_update=first_pass["update"], streak=max(1, state["streak"]))
@@ -470,6 +620,7 @@ def train(args):
         if extended:
             limit = requested_limit
             state.update(limit=limit, target=limit)
+        if extended or game_units_started:
             for name in ("summary.json", "REPORT.md"):
                 previous = folder / name
                 archived = previous.with_stem(f"{previous.stem}-{state['update']:04d}")
@@ -488,21 +639,26 @@ def train(args):
         if previous_device is not None:
             state.setdefault("device_history", []).append({"from": previous_device, "to": args.device,
                                                             "after_update": state["update"]})
-        if not args.resume or extended or args.until_first_pass or previous_device is not None or pbrs_changed:
+        if not args.resume or extended or game_units_started or args.until_first_pass or previous_device is not None or pbrs_changed:
             save(latest, model=model.state_dict(), optimizer=optimizer.state_dict(), config=config, state=state)
         if args.resume and read_json(folder / "config.json") != config:
             atomic_json(folder / "config.json", config)
-        progress.update(ppo_total=state["target"], required_passes=required_passes,
-                        pbrs_scale=state["hyper"].get("pbrs_scale", 0.))
+        progress.update(ppo_total=None if game_units else state["target"], required_passes=required_passes,
+                        qualified=state["qualified"], pbrs_scale=state["hyper"].get("pbrs_scale", 0.))
+        if game_units:
+            progress["game_units"] = dict(game_units)
         atomic_json(folder / PROGRESS, {**progress, "status": "training", "activity": "collecting"})
-        if extended or pbrs_changed:
+        if extended or pbrs_changed or game_units_started or (comparison and not args.resume):
             save_report(folder, config, state, history, False)
-        while state["update"] < state["target"] and not state["qualified"]:
+        while (game_units or state["update"] < state["target"]) and (
+            not state["qualified"] or (comparison and not game_units)
+        ):
             number = state["update"] + 1
             hyper = state["hyper"]
             for group in optimizer.param_groups:
                 group["lr"] = hyper["lr"]
-            torch.manual_seed(args.seed + 1_000_000 + number)
+            source_update = comparison["source_update"] if comparison else 0
+            torch.manual_seed(args.seed + 1_000_000 + source_update + number)
             started = time.perf_counter()
             batch, scores, by_opponent, starts, partial = experience.collect(model, hyper, args.device)
             sampled = time.perf_counter()
@@ -519,16 +675,25 @@ def train(args):
                      "actions_per_second": round(hyper["rollout_actions"] / (ended - started), 2),
                      "hyperparameters": dict(hyper), **diagnostics}
             selected = False
-            if number % SCHEDULE["evaluate_every"] == 0:
+            if game_units:
+                game_units["completed"] += sum(scores.values())
+                evaluation_due = game_units["completed"] >= game_units["next_evaluation"]
+            else:
+                evaluation_due = number % SCHEDULE["evaluate_every"] == 0
+            if evaluation_due:
+                if game_units:
+                    game_units["next_evaluation"] = (game_units["completed"] // game_units["size"] + 1) * game_units["size"]
                 atomic_json(folder / PROGRESS, {**progress, "status": "training", "activity": "evaluating", "eval_update": number})
                 eval_start = time.perf_counter()
                 scores, games = evaluate(model, arena, args.device, hyper.get("action_family_balance", 0.))
                 elo = model_elo(scores, arena["anchor_ratings"])
                 gate = passed(scores)
                 state["streak"] = state["streak"] + 1 if gate else 0
-                state["qualified"] = state["streak"] >= required_passes and (auto_units or number >= SCHEDULE["initial"])
-                if state["qualified"]:
-                    state["qualified_update"] = number
+                if state["streak"] >= required_passes and (comparison or auto_units or number >= SCHEDULE["initial"]):
+                    state["qualified"] = True
+                    state.setdefault("qualified_update", number)
+                elif not comparison:
+                    state["qualified"] = False
                 event.update(formal_eval=scores, development_eval=scores["level1"], shortest_eval=scores["bfs"],
                              gate_passed=gate, qualifying_streak=state["streak"], qualified=state["qualified"],
                              required_passes=required_passes,
@@ -545,11 +710,14 @@ def train(args):
                         event["next_ppo_target"] = limit
                 elif not state["qualified"] and number >= state["target"] and number < limit:
                     state["target"] = min(limit, number + SCHEDULE["evaluate_every"])
-                change = tuning(history, event, hyper) if not state["qualified"] and number < limit else None
+                change = tuning(history, event, hyper) if not comparison and not state["qualified"] and number < limit else None
                 if change:
                     event["tuning"] = change
                     state["hyper"] = {**hyper, change["parameter"]: change["after"]}
                 write_games(folder / f"ppo_{number:04d}_games.jsonl", games)
+            if game_units:
+                event["game_units"] = dict(game_units)
+                progress["game_units"] = dict(game_units)
             state["rollout"], state["event"] = experience.snapshot(), event
             save(latest, model=model.state_dict(), optimizer=optimizer.state_dict(), config=config, state=state)
             if "formal_eval" in event:
@@ -558,7 +726,7 @@ def train(args):
                     archive(latest, folder / "best.pt")
             record(metrics, event)
             history.append(event)
-            progress.update(ppo_total=state["target"], qualified=state["qualified"])
+            progress.update(ppo_total=None if game_units else state["target"], qualified=state["qualified"])
             if "formal_eval" in event:
                 atomic_json(folder / PROGRESS, {**progress, "status": "training", "activity": "collecting"})
                 save_report(folder, config, state, history, False)
@@ -568,9 +736,12 @@ def train(args):
             qualification = folder / f"checkpoint-{update:04d}.pt"
             archive(qualification, folder / "qualified.pt")
             progress.update(qualified=True, qualified_update=update)
+        if game_units:
+            progress["ppo_total"] = state["update"]
         save_report(folder, config, state, history, True)
         atomic_json(folder / "summary.json", {"protocol": PROTOCOL, "architecture": architecture,
-                    "qualified": state["qualified"], "updates": state["update"], "limit": limit, "steps": state["steps"],
+                    "qualified": state["qualified"], "updates": state["update"], "limit": None if game_units else limit,
+                    "steps": state["steps"], **({"game_units": game_units} if game_units else {}),
                     "streak": state["streak"], "required_passes": required_passes,
                     "pbrs_scale": state["hyper"].get("pbrs_scale", 0.),
                     "qualified_update": state.get("qualified_update"), "best_update": state["best_update"],
@@ -590,11 +761,18 @@ def main():
     parser.add_argument("--migrate-device", action="store_true", help="Allow only the training device to change on resume")
     parser.add_argument("--pbrs-scale", type=float,
                         help="BFS goal-distance coefficient, 0 disables, omitted preserves a resumed run's coefficient")
+    parser.add_argument("--comparison-source", type=Path, help="Start a fixed-budget Random comparison from a Level 1 checkpoint")
+    parser.add_argument("--comparison-arm", choices=("control", "random"), help="Select the training opponent mix")
     continuation = parser.add_mutually_exclusive_group()
     continuation.add_argument("--extend-to", type=int, help="Explicit cumulative update budget for a resumed run")
     continuation.add_argument("--until-first-pass", action="store_true",
                               help="Continue in 500-update units until the first formal evaluation passes")
+    continuation.add_argument("--until-first-pass-games", type=int, metavar="GAMES",
+                              help="Evaluate after each unit of completed training games until formally qualified")
     args = parser.parse_args()
+    if bool(args.comparison_source) != bool(args.comparison_arm) or (args.comparison_source and
+            (not args.architecture or args.resume or args.pbrs_scale is not None)):
+        parser.error("A new comparison requires an architecture, source checkpoint and arm and inherits PPO settings")
     if args.threads < 1 or args.lanes < 1 or HYPER["rollout_actions"] % args.lanes:
         parser.error("Positive threads and a lane count that divides 2048 are required")
     if args.extend_to is not None and (not args.resume or not args.architecture or args.extend_to < SCHEDULE["limit"]
@@ -602,6 +780,8 @@ def main():
         parser.error("--extend-to requires an architecture and --resume, and must end on an evaluation boundary")
     if args.until_first_pass and (not args.resume or not args.architecture):
         parser.error("--until-first-pass requires an architecture and --resume")
+    if args.until_first_pass_games is not None and (not args.resume or not args.architecture or args.until_first_pass_games < 1):
+        parser.error("--until-first-pass-games requires an architecture, --resume and a positive game count")
     if args.migrate_device and (not args.resume or not args.architecture):
         parser.error("--migrate-device requires an architecture and --resume")
     if args.pbrs_scale is not None and (not args.architecture or not math.isfinite(args.pbrs_scale) or args.pbrs_scale < 0.):

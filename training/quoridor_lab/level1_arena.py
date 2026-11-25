@@ -10,6 +10,8 @@ import torch
 from .fast_observation import ALL, BOTTOM, H_EDGES, LEFT, RIGHT, TOP, V_EDGES
 from .fast_observation import _goal_path, _neighbors, fast_action_mask, training_observation
 from .rules import Action, State
+from .search import SearchAgent
+from .search_demonstrations import SEARCH_LEVELS
 
 POOL = ("level1",) * 7 + ("bfs",) * 2 + ("randomized_search",)
 ANCHORS = ("random", "bfs", "level1")
@@ -21,6 +23,9 @@ POLICIES = {
     "level1": {"depth": 1, "wall_candidates": 6, "wall_penalty": .35, "random_probability": 0},
     "randomized_search": {"depth": 1, "wall_candidates": 6, "wall_penalty": .35, "random_probability": .25},
 }
+DEEP_SEARCH = {"level2": SEARCH_LEVELS["medium"], "level3": SEARCH_LEVELS["hard"]}
+SEARCH_ACTIONS = tuple(Action.from_id(i) for i in range(209))
+WALL_CELLS = tuple(0b11000000011 << (row * 9 + col) for row in range(8) for col in range(8))
 
 
 @lru_cache(maxsize=4096)
@@ -53,6 +58,98 @@ def bit_distance(start, goal, edges):
     return 999
 
 
+@lru_cache(maxsize=32768)
+def search_distance_layers(walls, goal):
+    """A wall layout can share goal distances across all pawn locations."""
+    edges = edges_for(walls)
+    layers = []
+    frontier = seen = goal
+    while frontier:
+        layers.append(frontier)
+        frontier = _neighbors(frontier, edges) & ~seen
+        seen |= frontier
+    return tuple(layers)
+
+
+@dataclass(frozen=True)
+class SearchPosition(State):
+    """Use the equivalent batched legality mask and bitset distances in search."""
+
+    def distance(self, player):
+        start = pawn_bit(self.pawns[player - 1])
+        goal = TOP if player == 1 else BOTTOM
+        for distance, layer in enumerate(search_distance_layers(self.walls, goal)):
+            if start & layer:
+                return distance
+        return 999
+
+    @lru_cache(maxsize=8192)
+    def legal_actions(self):
+        return [SEARCH_ACTIONS[code] for code in np.flatnonzero(fast_action_mask(self))]
+
+    def rank_legal_walls(self, walls, limit):
+        up, down, left, right = edges = edges_for(self.walls)
+        own, other = (pawn_bit(self.pawns[i - 1]) for i in (self.turn, 3 - self.turn))
+        own_goal, other_goal = (TOP, BOTTOM) if self.turn == 1 else (BOTTOM, TOP)
+        own_path = _goal_path(own, own_goal, edges)
+        other_path = _goal_path(other, other_goal, edges)
+        own_distance, other_distance = self.distance(self.turn), self.distance(3 - self.turn)
+
+        def rank(wall):
+            # Removing edges outside an existing shortest path preserves its distance.
+            anchor = wall.row * 8 + wall.col
+            if wall.kind == "h":
+                removed = H_EDGES[anchor]
+                component = 0
+                candidate = (up & ~(removed << 9), down & ~removed, left, right)
+            else:
+                removed = V_EDGES[anchor]
+                component = 1
+                candidate = (up, down, left & ~(removed << 1), right & ~removed)
+            ours = bit_distance(own, own_goal, candidate) if own_path[component] & removed else own_distance
+            theirs = bit_distance(other, other_goal, candidate) if other_path[component] & removed else other_distance
+            return ours - theirs, wall.notation
+
+        return sorted(walls, key=rank)[:limit]
+
+    def walls_near_shortest_paths(self, walls):
+        edges = edges_for(self.walls)
+        path = 0
+        for square, goal in zip(self.pawns, (TOP, BOTTOM), strict=True):
+            start = pawn_bit(square)
+            layers = search_distance_layers(self.walls, goal)
+            distance = next((i for i, layer in enumerate(layers) if start & layer), None)
+            if distance is None:
+                path |= start
+                continue
+            frontier = seen = start
+            for layer in reversed(layers[:distance + 1]):
+                path |= frontier & layer
+                frontier = _neighbors(frontier, edges) & ~seen
+                seen |= frontier
+        region = path | _neighbors(path, edges_for(()))
+        return [wall for wall in walls if WALL_CELLS[wall.row * 8 + wall.col] & region]
+
+    def apply(self, action):
+        # Search expands only actions taken from its generated legal list. The
+        # actual game still applies the returned action through the rules engine.
+        pawns, walls, remaining = list(self.pawns), self.walls, list(self.remaining)
+        winner = None
+        if action.kind == "move":
+            pawns[self.turn - 1] = (action.row, action.col)
+            if action.row == (0 if self.turn == 1 else 8):
+                winner = self.turn
+        else:
+            walls = tuple(sorted((*walls, (action.kind, action.row, action.col))))
+            remaining[self.turn - 1] -= 1
+        return SearchPosition(tuple(pawns), walls, tuple(remaining), 3 - self.turn, winner)
+
+
+@lru_cache(maxsize=32768)
+def depth_search_action(position, name):
+    return SearchAgent(config=DEEP_SEARCH[name]).choose(position).action.id
+
+
 def wall_trials(state, edges, target, goal):
     if not state.remaining[state.turn - 1]:
         return []
@@ -71,6 +168,9 @@ def wall_trials(state, edges, target, goal):
 
 
 def bot_action(state, name, seed):
+    if name in DEEP_SEARCH:
+        position = SearchPosition(state.pawns, state.walls, state.remaining, state.turn, state.winner)
+        return depth_search_action(position, name)
     rng = random.Random(seed ^ (len(state.history) * 2654435761))
     if name == "random":
         return int(rng.choice(np.flatnonzero(fast_action_mask(state))))
@@ -108,16 +208,21 @@ class Game:
     index: int = 0
 
     @classmethod
-    def start(cls, opening, player, opponent, seed, index=0):
+    def start(cls, opening, player, opponent, seed, index=0, resolve=bot_action):
         state = State.from_moves(opening)
         if state.turn != player:
-            state = state.apply(bot_action(state, opponent, seed))
+            state = state.apply(resolve(state, opponent, seed))
         return cls(state, player, opponent, seed, opening, index)
 
-    def step(self, action):
+    def step(self, action, resolve=bot_action):
         self.state = self.state.apply(action)
-        if self.state.winner is None and len(self.state.history) < MAX_PLIES:
-            self.state = self.state.apply(bot_action(self.state, self.opponent, self.seed))
+        result = self.outcome()
+        if result is None:
+            self.state = self.state.apply(resolve(self.state, self.opponent, self.seed))
+            result = self.outcome()
+        return result
+
+    def outcome(self):
         if self.state.winner is not None:
             return "wins" if self.state.winner == self.player else "losses"
         if len(self.state.history) >= MAX_PLIES:
@@ -127,6 +232,26 @@ class Game:
     def record(self, result):
         return {"opponent": self.opponent, "seed": self.seed, "learner_player": self.player,
                 "result": result, "opening": self.opening, "moves": self.state.history}
+
+
+def step_batch(games, actions, resolve_batch):
+    results = []
+    pending = []
+    for index, (game, action) in enumerate(zip(games, actions, strict=True)):
+        if action is None:
+            results.append("illegal")
+            continue
+        game.state = game.state.apply(action)
+        result = game.outcome()
+        results.append(result)
+        if result is None:
+            pending.append(index)
+    requests = [(games[index].state, games[index].opponent, games[index].seed) for index in pending]
+    for index, reply in zip(pending, resolve_batch(requests), strict=True):
+        game = games[index]
+        game.state = game.state.apply(reply)
+        results[index] = game.outcome()
+    return results
 
 
 def observations(games):
@@ -144,12 +269,12 @@ def balance_action_families(logits, mask, strength):
     return torch.cat((logits[:, :81] - pawn_offset, logits[:, 81:] - wall_offset), dim=1)
 
 
-def evaluation_games(openings, opponent, seed):
-    return [Game.start(opening, player, opponent, seed + index, index)
+def evaluation_games(openings, opponent, seed, resolve=bot_action):
+    return [Game.start(opening, player, opponent, seed + index, index, resolve)
             for index, opening in enumerate(openings) for player in (1, 2)]
 
 
-def play_evaluation(games, device, *, model=None, bot=None, family_balance=0.):
+def play_evaluation(games, device, *, model=None, bot=None, family_balance=0., resolve=bot_action):
     results = []
     if model is not None:
         model.eval()
@@ -159,7 +284,7 @@ def play_evaluation(games, device, *, model=None, bot=None, family_balance=0.):
             for start in range(0, len(games), 96):
                 group = games[start:start + 96]
                 if model is None:
-                    actions = [bot_action(game.state, bot, game.seed ^ 40391) for game in group]
+                    actions = [resolve(game.state, bot, game.seed ^ 40391) for game in group]
                     legal = None
                 else:
                     boards, legal = observations(group)
@@ -167,8 +292,14 @@ def play_evaluation(games, device, *, model=None, bot=None, family_balance=0.):
                     logits, _ = model(boards.to(device), device_mask)
                     logits = balance_action_families(logits, device_mask, family_balance)
                     actions = logits.argmax(dim=-1).tolist()
-                for index, (game, action) in enumerate(zip(group, actions)):
-                    result = "illegal" if legal is not None and not legal[index, action] else game.step(action)
+                actions = [action if legal is None or legal[index, action] else None
+                           for index, action in enumerate(actions)]
+                if (resolve_batch := getattr(resolve, "batch", None)) is not None:
+                    outcomes = step_batch(group, actions, resolve_batch)
+                else:
+                    outcomes = [game.step(action, resolve) if action is not None else "illegal"
+                               for game, action in zip(group, actions)]
+                for game, result in zip(group, outcomes):
                     if result:
                         results.append(game.record(result))
                     else:
@@ -189,9 +320,11 @@ def score_games(games):
             "wins_blue": sum(game["result"] == "wins" and game["learner_player"] == 2 for game in games)}
 
 
-def passed(scores):
+def passed(scores, thresholds=THRESHOLDS, truncation_limit=.05, *, truncation_limits=None):
+    limits = truncation_limits or {}
     return all(scores[name]["win_rate"] >= threshold and scores[name]["illegal"] == 0
-               and scores[name]["truncation_rate"] < .05 for name, threshold in THRESHOLDS.items())
+               and scores[name]["truncation_rate"] < limits.get(name, truncation_limit)
+               for name, threshold in thresholds.items())
 
 
 def estimate_elo(matches):

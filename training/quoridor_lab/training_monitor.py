@@ -8,6 +8,7 @@ import threading
 import time
 
 from fastapi import HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from .phase1_monitor import PREFIX, Phase1Monitor, writer_active
@@ -270,13 +271,13 @@ def install_training_routes(app, monitor):
                     runs.append(detail)
                 except HTTPException:
                     continue
-        return {"runs": sorted(runs, key=lambda item: item.get("updated_at", ""), reverse=True),
-                "phase1_demonstrations": phase1.demonstrations()}
+        return JSONResponse({"runs": sorted(runs, key=lambda item: item.get("updated_at", ""), reverse=True),
+                             "phase1_demonstrations": phase1.demonstrations(), "phase1_course": phase1.course()})
 
     @app.get("/training/runs/{run_id}")
     def run_detail(run_id: str):
         if run_id.startswith(PREFIX):
-            return phase1.detail(run_id)
+            return JSONResponse(phase1.detail(run_id))
         return monitor.detail(run_id)
 
     @app.post("/training/runs/{run_id}/predict")

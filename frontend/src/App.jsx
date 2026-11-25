@@ -47,12 +47,19 @@ import TrainingDashboard from "./components/TrainingDashboard.jsx";
 import { applyAction, notation, replay } from "./game/rules.js";
 import { agentRegistry, createAgentRunner, httpAgent } from "./game/agents.js";
 import {
+  SEARCH_DIFFICULTIES,
+  normalizeSearchDifficulty,
+  resolveSearchEndpoint,
+  savedSearchDifficulty,
+} from "./game/searchDifficulty.js";
+import {
   createRecord,
   decodeShare,
   encodeShare,
   exportRecord,
   parseRecord,
   replaySelection,
+  replaySamples,
 } from "./game/record.js";
 import {
   playMoveSound,
@@ -63,7 +70,10 @@ import "./styles.css";
 
 for (const id of ["dl", "rl", "search"])
   agentRegistry.register(id, httpAgent(`/api/agents/${id}/move`));
+const selectedRun = "selected310-cnn32-seed0";
+agentRegistry.register(selectedRun, httpAgent(`http://127.0.0.1:8766/agents/${selectedRun}/move`));
 const strategyNames = {
+  [selectedRun]: "精选 310 盘 · CNN32",
   shortest: "最短路基线",
   random: "随机基线",
   dl: "深度学习",
@@ -427,7 +437,7 @@ function ImportForm({ onImport }) {
       let record;
       const input = value.trim();
       if (input.startsWith("{")) record = parseRecord(input);
-      else if (input.includes("moves=") || input.includes("var="))
+      else if (input.includes("moves=") || input.includes("var=") || replaySamples.some(({ key }) => input.includes(`${key}=`)))
         record = decodeShare(input);
       else record = createRecord(input.split(/[\s,]+/).filter(Boolean));
       onImport(record);
@@ -486,6 +496,8 @@ export default function App() {
   const [locationKey, setLocationKey] = useState(currentRoute());
   const path = locationKey.split("?")[0];
   const isReplay = path === "/analysis";
+  const query = new URLSearchParams(locationKey.split("?")[1]);
+  const sampleCollection = replaySamples.find(({ key }) => query.has(key));
   const [record, setRecord] = useState(() => {
     try {
       return routeParts().pathname === "/analysis"
@@ -519,6 +531,13 @@ export default function App() {
   );
   const [human, setHuman] = useState(1);
   const [strategy, setStrategy] = useState("shortest");
+  const [searchDifficulty, setSearchDifficulty] = useState(() =>
+    normalizeSearchDifficulty(
+      readPreference("searchDifficulty", savedSearchDifficulty({ endpoints })),
+    ),
+  );
+  const apiBase = location.protocol === "file:" ? "http://127.0.0.1:8765" : "/api";
+  const searchEndpoint = resolveSearchEndpoint(endpoints, searchDifficulty, apiBase);
   const [thinking, setThinking] = useState(false);
   const [aiError, setAiError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -557,11 +576,18 @@ export default function App() {
     thinking ||
     Boolean(aiError) ||
     (isComputer && state.turn !== human);
+  function strategyLabel(id, difficulty = searchDifficulty) {
+    return id === "search"
+      ? t("搜索型 AI · {difficulty}", {
+          difficulty: t(SEARCH_DIFFICULTIES[normalizeSearchDifficulty(difficulty)]),
+        })
+      : t(strategyNames[id] || id);
+  }
   const names = isComputer
     ? {
         [human]: t("你"),
         [3 - human]: t("电脑 · {strategy}", {
-          strategy: t(strategyNames[strategy] || strategy),
+          strategy: strategyLabel(strategy),
         }),
       }
     : { 1: t("玩家 1"), 2: t("玩家 2") };
@@ -605,10 +631,14 @@ export default function App() {
   }, [isGame, isReplay]);
 
   useEffect(() => {
-    for (const id of ["dl", "rl", "search"])
+    for (const id of ["dl", "rl"])
       if (endpoints[id]?.trim())
         agentRegistry.register(id, httpAgent(endpoints[id].trim()));
-  }, [endpoints]);
+    if (searchEndpoint) agentRegistry.register("search", httpAgent(searchEndpoint));
+  }, [endpoints, searchEndpoint]);
+  useEffect(() => {
+    writePreference("searchDifficulty", searchDifficulty);
+  }, [searchDifficulty]);
   useEffect(() => {
     writePreference("muted", muted);
   }, [muted]);
@@ -670,6 +700,7 @@ export default function App() {
         mode: isComputer ? "computer" : "local",
         human,
         strategy,
+        searchDifficulty,
         endpoints,
         record: clean,
       };
@@ -679,7 +710,7 @@ export default function App() {
     } catch {
       notify("对局记录保存失败，请检查浏览器存储空间。");
     }
-  }, [record, path, isComputer]);
+  }, [record, path, isComputer, searchDifficulty]);
   function restoreRecord(entry) {
     try {
       const clean = parseRecord(entry.record);
@@ -688,11 +719,16 @@ export default function App() {
       if (entry.mode === "computer") {
         const id = strategyNames[entry.strategy] ? entry.strategy : "shortest";
         const urls = entry.endpoints || endpoints;
+        const level = savedSearchDifficulty(entry);
         setHuman(entry.human === 2 ? 2 : 1);
         setStrategy(id);
+        setSearchDifficulty(level);
         setEndpoints(urls);
-        if (["dl", "rl", "search"].includes(id) && urls[id])
-          agentRegistry.register(id, httpAgent(urls[id]));
+        const url = id === "search"
+          ? resolveSearchEndpoint(urls, level, apiBase)
+          : urls[id];
+        if (["dl", "rl", "search"].includes(id) && url)
+          agentRegistry.register(id, httpAgent(url));
         setComputerStarted(true);
       }
       setRecord(clean);
@@ -724,6 +760,11 @@ export default function App() {
     setThinking(false);
     try {
       const route = routeParts();
+      if (route.pathname === "/computer" && new URLSearchParams(route.search).get("opponent") === selectedRun) {
+        setStrategy(selectedRun);
+        setHuman(1);
+        setComputerStarted(true);
+      }
       const next =
         route.pathname === "/analysis"
           ? decodeShare(route.search)
@@ -921,6 +962,8 @@ export default function App() {
     Boolean(record.result),
     human,
     strategy,
+    searchDifficulty,
+    searchEndpoint,
     retry,
   ]);
 
@@ -1315,6 +1358,27 @@ export default function App() {
   function replayControls(mobile = false) {
     return (
       <div className="replay-controls">
+        {(sampleCollection || !record.moves.length) && (
+          <select
+            className="sample-game-select"
+            aria-label={t("选择抽样棋谱")}
+            value={sampleCollection ? `${sampleCollection.key}=${query.get(sampleCollection.key)}` : ""}
+            onChange={(event) => navigate(`/analysis?${event.target.value}&ply=0`)}
+          >
+            <option value="" disabled>{t("选择抽样棋谱")}</option>
+            {replaySamples.map(({ key, label, games }) => (
+              <optgroup key={key} label={t(label)}>
+                {games.map((sample, index) => (
+                  <option key={sample.id} value={`${key}=${index + 1}`}>
+                    {t("{collection} · 第 {number} / {count} 局", {
+                      collection: t(label), number: index + 1, count: games.length,
+                    })}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        )}
         <div className="playback-buttons">
           <IconButton
             icon={BackwardIcon}
@@ -1699,44 +1763,88 @@ export default function App() {
               {Object.entries(strategyNames).map(([id, name]) => (
                 <option key={id} value={id}>
                   {t(name)}
-                  {["dl", "rl", "search"].includes(id)
+                  {["dl", "rl"].includes(id)
                     ? t("（需配置服务）")
                     : ""}
                 </option>
               ))}
             </select>
+            {strategy === "search" && (
+              <div className="search-difficulty">
+                <span className="field-label" id="search-difficulty-label">
+                  {t("搜索难度")}
+                </span>
+                <div
+                  className="difficulty-options search-difficulty-options"
+                  role="group"
+                  aria-labelledby="search-difficulty-label"
+                >
+                  {Object.entries(SEARCH_DIFFICULTIES).map(([level, label]) => (
+                    <button
+                      key={level}
+                      type="button"
+                      className={
+                        searchDifficulty === level ? "selected-option" : ""
+                      }
+                      aria-pressed={searchDifficulty === level}
+                      onClick={() => setSearchDifficulty(level)}
+                    >
+                      {t(label)}
+                    </button>
+                  ))}
+                </div>
+                <p className="integration-note">
+                  {t(
+                    {
+                      easy: "适合熟悉规则，电脑偶尔会随机落子。",
+                      medium: "默认难度，适合日常练习。",
+                      hard: "电脑会思考更久，每步约需 2 秒。",
+                    }[searchDifficulty],
+                  )}
+                </p>
+              </div>
+            )}
             {["dl", "rl", "search"].includes(strategy) && (
               <label className="field-label">
                 {t("策略服务地址")}
                 <input
                   aria-label={t("策略服务地址")}
-                  value={endpoints[strategy] || ""}
+                  value={strategy === "search"
+                    ? searchEndpoint
+                    : endpoints[strategy] || ""}
                   onChange={(event) =>
                     setEndpoints({
                       ...endpoints,
-                      [strategy]: event.target.value,
+                      [strategy === "search"
+                        ? `search_${searchDifficulty}`
+                        : strategy]: event.target.value,
                     })
                   }
                   placeholder="http://127.0.0.1:8000/move"
                 />
               </label>
             )}
-            <p className="integration-note">
-              {t(
-                "最短路和随机策略是基线测试；深度学习、强化学习和搜索策略需要接入你自己的服务。",
-              )}
-            </p>
+            {strategy !== "search" && (
+              <p className="integration-note">
+                {t(
+                  "最短路和随机策略是基线测试；深度学习、强化学习和搜索策略需要接入你自己的服务。",
+                )}
+              </p>
+            )}
             <button
               className="primary full-width"
               onClick={() => {
                 if (["dl", "rl", "search"].includes(strategy)) {
-                  if (!endpoints[strategy]?.trim()) {
+                  const url = strategy === "search"
+                    ? searchEndpoint
+                    : endpoints[strategy]?.trim();
+                  if (!url) {
                     notify("请填写策略服务地址。");
                     return;
                   }
                   agentRegistry.register(
                     strategy,
-                    httpAgent(endpoints[strategy].trim()),
+                    httpAgent(url),
                   );
                   writePreference("agentEndpoints", endpoints);
                 }
@@ -1869,8 +1977,9 @@ export default function App() {
                   <strong>
                     {entry.mode === "computer"
                       ? t("人机 · {strategy}", {
-                          strategy: t(
-                            strategyNames[entry.strategy] || entry.strategy,
+                          strategy: strategyLabel(
+                            entry.strategy,
+                            savedSearchDifficulty(entry),
                           ),
                         })
                       : t("本地双人")}

@@ -719,6 +719,15 @@ button.danger {
   padding: 10px 8px;
   flex-shrink: 0;
 }
+.sample-game-select {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 7px 8px;
+  border: 1px solid #3f3f46;
+  border-radius: 5px;
+  color: #fafafa;
+  background: #27272a;
+}
 .playback-buttons {
   display: flex;
   gap: 3px;
@@ -1032,6 +1041,9 @@ input[type="checkbox"] {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 5px;
+}
+.search-difficulty-options {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .difficulty-options button,
 .side-options button {

@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircleIcon, ClockIcon, MinusCircleIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon, ClockIcon, MinusCircleIcon, PauseCircleIcon } from "@heroicons/react/24/outline";
 
 function Stage({ title, tasks, t }) {
   const completed = tasks.filter(task => task.state === "done").length;
@@ -9,17 +9,17 @@ function Stage({ title, tasks, t }) {
     </div>
     <progress value={completed} max={tasks.length} aria-label={title} />
     <ul>{tasks.map(({ label, detail, state = "pending" }) => {
-      const Icon = { done: CheckCircleIcon, active: ClockIcon, pending: MinusCircleIcon }[state];
+      const Icon = { done: CheckCircleIcon, active: ClockIcon, paused: PauseCircleIcon, pending: MinusCircleIcon }[state];
       return <li key={label} className={`training-task is-${state}`}>
         <Icon aria-hidden="true" />
         <div><strong>{label}</strong>{detail && <small>{detail}</small>}</div>
-        <span className="training-task-status">{t({done: "已完成", active: "进行中", pending: "待开始"}[state])}</span>
+        <span className="training-task-status">{t({done: "已完成", active: "进行中", paused: "已暂停", pending: "待开始"}[state])}</span>
       </li>;
     })}</ul>
   </section>;
 }
 
-export default function TrainingRoadmap({ runs, demonstrations, onSelectRun, t }) {
+export default function TrainingRoadmap({ runs, demonstrations, course, onSelectRun, t }) {
   const groups = new Map();
   for (const run of runs.filter(item => item.kind === "phase1" && !item.level1)) {
     const group = groups.get(run.batch) ?? [];
@@ -33,7 +33,8 @@ export default function TrainingRoadmap({ runs, demonstrations, onSelectRun, t }
   const pilot = groupsByBatch.find(group => both(group, ready));
   const warm = groupsByBatch.some(group => both(group, run => run.warm_start_saved));
   const active = runs.some(run => run.kind === "phase1" && !run.level1 && run.status === "training");
-  const level1 = runs.filter(run => run.level1);
+  const level1 = runs.filter(run => run.level1 && (run.phase1_level ?? 1) === 1 && !run.comparison_arm);
+  const comparison = runs.filter(run => run.comparison_arm);
   const demo = demonstrations.find(item => item.batch === pilot?.[0]?.batch) ?? demonstrations[0];
   const pilotRuns = pilot ? ["mlp", "cnn32"].map(architecture =>
     pilot.find(run => run.architecture === architecture && ready(run))) : [];
@@ -53,11 +54,58 @@ export default function TrainingRoadmap({ runs, demonstrations, onSelectRun, t }
           {run.architecture.toUpperCase()} · {run.ppo_done}/{run.ppo_total ?? "—"}
         </button>)}
       </span> : t("两种架构各 3 个独立种子") },
+    ...(comparison.length ? [{
+      label: t("Random 专项训练与对照"),
+      state: ["random", "control"].every(arm => both(comparison, run => run.comparison_arm === arm && ready(run)))
+        ? "done" : comparison.some(run => run.status === "training") ? "active" : "pending",
+      detail: <span className="training-task-links">
+        {comparison.map(run => <button key={run.id} type="button" onClick={() => onSelectRun(run.id)}>
+          {run.architecture.toUpperCase()} · {t(run.comparison_arm === "random" ? "专项组" : "对照组")} · {run.game_units && !run.qualified
+            ? t("{done}/{total} 盘", { done: run.game_units.completed, total: run.game_units.next_evaluation })
+            : `${run.ppo_done}/${run.ppo_total ?? "—"}`}
+        </button>)}
+      </span>,
+    }] : []),
     { label: t("固定 Arena 与 Elo 评估") },
   ];
+  const courseTasks = course?.stages?.map(stage => ({
+    label: `Level ${stage.level} · ${t(stage.name)}`,
+    state: stage.status === "qualified" ? "done" : stage.status === "training"
+      ? ({ training: "active", paused: "paused" }[course.status] ?? "pending") : "pending",
+    detail: <span className="training-task-links">
+      {Object.entries(stage.runs).map(([architecture, id]) => {
+        const run = runs.find(item => item.id === id);
+        if (!run) return <span key={id}>{architecture.toUpperCase()}</span>;
+        const units = run.game_units;
+        const progress = run.qualified ? t(run.gate_adjustment_reason ? "调整后通过" : "已达标")
+          : units ? t("{done}/{total} 盘", { done: units.completed, total: units.next_evaluation })
+          : `${run.ppo_done}/${run.ppo_total ?? "—"}`;
+        return <button key={id} type="button" onClick={() => onSelectRun(id)}>
+          {architecture.toUpperCase()} · {progress}
+        </button>;
+      })}
+    </span>,
+  }));
+  if (courseTasks) {
+    const arenaProgress = course.arena_progress;
+    courseTasks.push({ label: t("最终 Arena 与 Elo 排行"),
+      state: course.status === "completed" ? "done" : course.status === "arena" ? "active" : "pending",
+      detail: arenaProgress?.total_pairs ? t("{done}/{total} 个配对", {
+        done: arenaProgress.completed_pairs, total: arenaProgress.total_pairs,
+      }) : null });
+  }
   return <aside className="training-panel training-roadmap" aria-label={t("训练任务清单")}>
     <h2>{t("训练任务清单")}</h2>
     <p className="training-roadmap-intro">{t("阶段完成进度")}</p>
+    {courseTasks && <Stage title={t("Phase 1 · 逐级验收")} tasks={courseTasks} t={t} />}
+    {course?.final?.ratings?.length > 0 && <details className="training-phase-replays">
+      <summary>{t("查看最终 Elo 排行")}</summary>
+      <ol>
+        {course.final.ratings.map(([name, elo]) => <li key={name}>
+          {name} · {elo.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+        </li>)}
+      </ol>
+    </details>}
     <Stage title={t("Phase 1 · 搜索示范与 PPO")} tasks={stage1} t={t} />
     <Stage title={t("Phase 2 · MCTS 推理")} t={t} tasks={[
       { label: t("冻结 PPO 权重并接入 MCTS") },

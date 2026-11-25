@@ -172,25 +172,28 @@ def _wall_cells(action: Action) -> set[Square]:
     return {(r, c), (r + 1, c), (r, c + 1), (r + 1, c + 1)}
 
 
-def _wall_gain(state: State, action: Action) -> float:
-    me, opp = state.turn, 3 - state.turn
-    before = _distance_margin(state, me, opp)
-    after = _distance_margin(state.apply(action), me, opp)
-    return after - before
+def _wall_score(state: State, action: Action) -> float:
+    # The margin before placing a wall is the same for all sibling moves.
+    return _distance_margin(state.apply(action), state.turn, 3 - state.turn)
 
 
 def _rank_walls(state: State, walls: list[Action], limit: int) -> list[Action]:
-    scored = sorted(((-_wall_gain(state, w), w.notation, w) for w in walls))
-    return [w for *_, w in scored[:limit]]
+    if rank := getattr(state, "rank_legal_walls", None):
+        return rank(walls, limit)
+    return sorted(walls, key=lambda wall: (-_wall_score(state, wall), wall.notation))[:limit]
 
 
 def candidate_actions(state: State, config: DifficultyConfig) -> list[Action]:
     legal = state.legal_actions()
     moves = [a for a in legal if a.kind == "move"]
     walls = [a for a in legal if a.kind != "move"]
-    if config.wall_path_filter:
-        region = _path_adjacent_region(state)
-        near = [w for w in walls if _wall_cells(w) & region]
+    if config.wall_path_filter and walls:
+        filter_walls = getattr(state, "walls_near_shortest_paths", None)
+        if filter_walls is None:
+            region = _path_adjacent_region(state)
+            near = [w for w in walls if _wall_cells(w) & region]
+        else:
+            near = filter_walls(walls)
         walls = near if near else walls
     if config.max_wall_candidates and len(walls) > config.max_wall_candidates:
         walls = _rank_walls(state, walls, config.max_wall_candidates)
@@ -217,7 +220,7 @@ def _order_actions(state: State, actions: list[Action], root_player: int) -> lis
 
     direction = -1 if state.turn == root_player else 1
     moves.sort(key=lambda a: (direction * move_score(a), a.notation))
-    walls.sort(key=lambda a: (-_wall_gain(state, a), a.notation))
+    walls.sort(key=lambda a: (-_wall_score(state, a), a.notation))
     return moves + walls
 
 

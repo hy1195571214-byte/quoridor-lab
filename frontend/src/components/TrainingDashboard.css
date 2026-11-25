@@ -155,6 +155,7 @@
 .training-metrics-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; font-variant-numeric: tabular-nums; }
 .training-metrics-table th, .training-metrics-table td { border-bottom: 1px solid #27272a; padding: 10px 8px; white-space: nowrap; text-align: right; }
 .training-metrics-table th:first-child { padding-left: 0; text-align: left; }
+.training-metrics-table caption { padding: 12px 0 4px; text-align: left; color: #d4d4d8; }
 .training-metrics-table thead th { color: #a1a1aa; font-weight: 500; }
 .training-metrics-table tbody tr:last-child > * { border-bottom: 0; }
 .training-phase-replays { margin-top: 12px; color: #bfdbfe; font-size: 12px; }
@@ -162,6 +163,8 @@
 .training-phase-replays ul { max-height: 220px; overflow-y: auto; margin-top: 8px; }
 .training-phase-replays button { display: flex; justify-content: space-between; gap: 8px; width: 100%; text-align: left; padding: 7px 4px; }
 .training-phase-replays button:hover { background: #27272a; }
+.training-phase-adjustments li { display: grid; gap: 4px; padding: 7px 4px; }
+.training-phase-adjustments li span { color: #d4d4d8; }
 @media (max-width: 1390px) {
   .training-dashboard-content .training-workspace { grid-template-columns: minmax(0, 1fr); }
   .training-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

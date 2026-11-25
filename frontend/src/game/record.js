@@ -1,5 +1,12 @@
+import { nonselectedSample } from "./nonselectedSample.js";
+import { selectedSample } from "./selectedSample.js";
 import LZString from "lz-string";
 import { replay, notation } from "./rules.js";
+
+export const replaySamples = [
+  { key: "selected", label: "精选棋谱抽样", games: selectedSample },
+  { key: "nonselected", label: "非精选棋谱抽样", games: nonselectedSample },
+];
 
 const MAX_INPUT = 128_000;
 const MAX_MOVES = 1000;
@@ -155,6 +162,14 @@ export function decodeShare(search = "") {
     ? search.slice(search.indexOf("?") + 1).split("#")[0]
     : search.replace(/^\?/, "");
   const params = new URLSearchParams(query);
+  const collection = replaySamples.find(({ key }) => params.has(key));
+  if (collection && !params.has("moves")) {
+    const number = params.get(collection.key);
+    const sample = /^[1-9]\d*$/.test(number) && collection.games[Number(number) - 1];
+    if (!sample) fail("Unknown sample game");
+    params.set("moves", sample.moves);
+    params.set("result", JSON.stringify({ winner: sample.winner, reason: "goal" }));
+  }
   const encoded = params.get("moves");
   let moves = [];
   if (encoded) {

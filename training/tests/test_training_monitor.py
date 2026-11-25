@@ -22,6 +22,54 @@ from quoridor_lab.training_monitor import TrainingJournal, TrainingMonitor, inst
 
 @unittest.skipUnless(torch is not None, 'Install learning dependencies for checkpoint tests')
 class TrainingMonitorTests(unittest.TestCase):
+    def test_phase1_poll_reuses_completed_log_and_reloads_after_append(self):
+        from quoridor_lab import phase1_monitor
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            run = root / "phase1" / "mlp-seed0"
+            run.mkdir(parents=True)
+            (run / "config.json").write_text(json.dumps({
+                "architecture": "mlp", "protocol": "phase1-level1-v1", "demonstrations_sha256": "fixture",
+            }))
+            metrics = run / "metrics.jsonl"
+            metrics.write_text('{"phase":"imitation","epoch":1}\n{"phase":"ppo","update":1,"steps":24}\n')
+            app = FastAPI()
+            install_training_routes(app, TrainingMonitor(root, root / "episodes.jsonl"))
+            client = TestClient(app)
+            with patch.object(phase1_monitor, "parse_rows", wraps=phase1_monitor.parse_rows) as parse:
+                reply = client.get("/training/runs").json()["runs"][0]
+                self.assertEqual((reply["imitation_done"], reply["ppo_done"]), (1, 1))
+                self.assertEqual(client.get("/training/runs").json()["runs"][0], reply)
+                self.assertEqual(parse.call_count, 1)
+                with metrics.open("a") as stream:
+                    stream.write('{"phase":"ppo","update":2,"steps":48}')
+                self.assertEqual(client.get("/training/runs").json()["runs"][0]["ppo_done"], 1)
+                with metrics.open("a") as stream:
+                    stream.write("\n")
+                self.assertEqual(client.get("/training/runs").json()["runs"][0]["ppo_done"], 2)
+                self.assertEqual(parse.call_count, 3)
+            detail = client.get("/training/runs/phase1:phase1:mlp-seed0")
+            self.assertEqual([row["update"] for row in detail.json()["ppo"]], [1, 2])
+
+    def test_phase1_lists_current_game_count_while_evaluating(self):
+        from quoridor_lab.phase1_monitor import Phase1Monitor, PROGRESS
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            run = root / "phase1" / "mlp-seed0"
+            run.mkdir(parents=True)
+            (run / "config.json").write_text(json.dumps({
+                "architecture": "mlp", "protocol": "phase1-level1-v1", "demonstrations_sha256": "fixture",
+            }))
+            (run / "metrics.jsonl").write_text(
+                '{"phase":"ppo","update":5,"game_units":{"completed":488,"next_evaluation":500}}\n')
+            (run / PROGRESS).write_text(json.dumps({"status": "training", "activity": "evaluating",
+                                                   "game_units": {"completed": 601, "next_evaluation": 500}}))
+            status = Phase1Monitor(root).detail("phase1:phase1:mlp-seed0", include_logs=False)
+            self.assertEqual(status["activity"], "evaluating")
+            self.assertEqual(status["game_units"]["completed"], 601)
+
     def test_mid_epoch_io_failure_resumes_to_identical_weights(self):
         from quoridor_lab import supervised
         with tempfile.TemporaryDirectory() as folder:

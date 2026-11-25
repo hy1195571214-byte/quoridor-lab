@@ -46,6 +46,7 @@ export default function TrainingDashboard({ navigate }) {
   const { t } = useLanguage();
   const [runs, setRuns] = useState([]);
   const [phase1Demonstrations, setPhase1Demonstrations] = useState([]);
+  const [phase1Course, setPhase1Course] = useState(null);
   const [runId, setRunId] = useState(() => {
     const url = location.protocol === "file:"
       ? new URL(location.hash.slice(1) || "/", "http://localhost")
@@ -89,6 +90,7 @@ export default function TrainingDashboard({ navigate }) {
         if (controller.signal.aborted) return;
         setRuns(result.runs);
         setPhase1Demonstrations(result.phase1_demonstrations ?? []);
+        setPhase1Course(result.phase1_course ?? null);
         setConnectionError("");
         setRunId(previous => chooseTrainingRun(result.runs, previous, manualRunSelection.current));
       } catch (error) {
@@ -275,7 +277,8 @@ export default function TrainingDashboard({ navigate }) {
     {connectionError && <p className="training-error" role="alert">{connectionError}</p>}
     <div className="training-dashboard-layout">
       <div className="training-dashboard-content">
-      {phase1Selected ? <Phase1Training run={run?.id === runId ? run : null} navigate={navigate} t={t} /> : <>
+      {phase1Selected ? <Phase1Training run={run?.id === runId ? run : null}
+        course={phase1Course} navigate={navigate} t={t} /> : <>
     {run?.error && run.status !== "stopped" && <p className="training-error" role="alert">{
       run.failure_reason === "data_unavailable" || run.error.includes("[Errno 5]")
         ? t("训练因数据读取中断而停止，请确认数据盘已连接。") : run.error
@@ -367,7 +370,7 @@ export default function TrainingDashboard({ navigate }) {
     </div>
       </>}
       </div>
-      <TrainingRoadmap runs={runs} demonstrations={phase1Demonstrations} onSelectRun={selectRun} t={t} />
+      <TrainingRoadmap runs={runs} demonstrations={phase1Demonstrations} course={phase1Course} onSelectRun={selectRun} t={t} />
     </div>
   </main>;
 }
